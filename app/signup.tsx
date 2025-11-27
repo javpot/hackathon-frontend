@@ -9,6 +9,8 @@ import {
   Platform,
   StatusBar,
   Alert,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -39,66 +41,70 @@ export default function Signup() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <StatusBar barStyle="light-content" />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.inner}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Créer un compte</Text>
+          </View>
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Créer un compte</Text>
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.label}>Nom</Text>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="Votre nom"
-          placeholderTextColor="#999"
-          style={styles.input}
-        />
+          <View style={styles.card}>
+            <Text style={styles.label}>Nom</Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Votre nom"
+              placeholderTextColor="#999"
+              style={styles.input}
+            />
 
-        <Text style={[styles.label, { marginTop: 12 }]}>Email</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>Email</Text>
 
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="votre.email@exemple.com"
-          placeholderTextColor="#999"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={styles.input}
-        />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="votre.email@exemple.com"
+              placeholderTextColor="#999"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+            />
 
-        <Text style={[styles.label, { marginTop: 12 }]}>Mot de passe</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••"
-          placeholderTextColor="#999"
-          secureTextEntry
-          style={styles.input}
-        />
+            <Text style={[styles.label, { marginTop: 12 }]}>Mot de passe</Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor="#999"
+              secureTextEntry
+              style={styles.input}
+            />
 
-        <Text style={[styles.label, { marginTop: 12 }]}>
-          Confirmer le mot de passe
-        </Text>
-        <TextInput
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          placeholder="••••••••"
-          placeholderTextColor="#999"
-          secureTextEntry
-          style={styles.input}
-        />
+            <Text style={[styles.label, { marginTop: 12 }]}>
+              Confirmer le mot de passe
+            </Text>
+            <TextInput
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="••••••••"
+              placeholderTextColor="#999"
+              secureTextEntry
+              style={styles.input}
+            />
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={onSignup}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.buttonText}>S'inscrire</Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={onSignup}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonText}>S'inscrire</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.link}>Déjà un compte ? Se connecter</Text>
-        </TouchableOpacity>
-      </View>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.link}>Déjà un compte ? Se connecter</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -107,8 +113,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0f1724",
-    padding: 20,
+  },
+  inner: {
+    flex: 1,
     justifyContent: "center",
+    padding: 20,
   },
   header: {
     alignItems: "center",

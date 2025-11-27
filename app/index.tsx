@@ -9,6 +9,8 @@ import {
   Platform,
   StatusBar,
   Alert,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -18,8 +20,12 @@ export default function Index() {
   const [password, setPassword] = useState("");
 
   function onLogin() {
-    // Ici vous pouvez appeler une API ou naviguer
-    Alert.alert("Connexion", `Email: ${email}\nMot de passe: ${password}`);
+    if (!email || !password) {
+      Alert.alert("Erreur", "Veuillez entrer votre email et mot de passe.");
+      return;
+    } else {
+      router.push("/main");
+    }
   }
 
   return (
@@ -28,49 +34,52 @@ export default function Index() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <StatusBar barStyle="light-content" />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.inner}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Hackathon ETS</Text>
+          </View>
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Hackathon ETS</Text>
-      </View>
+          <View style={styles.card}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="votre.email@exemple.com"
+              placeholderTextColor="#999"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+            />
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="votre.email@exemple.com"
-          placeholderTextColor="#999"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={styles.input}
-        />
+            <Text style={[styles.label, { marginTop: 12 }]}>Mot de passe</Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor="#999"
+              secureTextEntry
+              style={styles.input}
+            />
 
-        <Text style={[styles.label, { marginTop: 12 }]}>Mot de passe</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••"
-          placeholderTextColor="#999"
-          secureTextEntry
-          style={styles.input}
-        />
+            <TouchableOpacity
+              style={styles.button}
+              onPress={onLogin}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonText}>Se connecter</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={onLogin}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.buttonText}>Se connecter</Text>
-        </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/signup")}>
+              <Text style={styles.forgot}>Pas de compte ? s'inscrire</Text>
+            </TouchableOpacity>
+          </View>
 
-        <TouchableOpacity onPress={() => router.push("/signup")}>
-          <Text style={styles.forgot}>Pas de compte ? s'inscrire</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Team YVL</Text>
-      </View>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Team YVL</Text>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -79,6 +88,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0f1724",
+  },
+  inner: {
+    flex: 1,
     padding: 20,
     justifyContent: "center",
   },

@@ -11,9 +11,36 @@ import {
   Alert,
   TouchableWithoutFeedback,
   Keyboard,
+  Linking, // <-- Importation de Linking pour ouvrir les réglages
 } from "react-native";
 import { useRouter } from "expo-router";
+// Assurez-vous que le chemin d'accès au service API est correct
 import { login, getUser, logout } from "../services/api"; 
+
+// --- Fonctions d'Ouverture des Réglages Hotspot ---
+const openHotspotSettingsIOS = () => {
+   Linking.openURL("prefs:root=INTERNET_TETHERING").catch(() => {
+    Linking.openSettings();
+  });
+  
+  // L'action cruciale est ici :
+  Alert.alert(
+    "1. Ouvrez Réglages, 2. Partage de connexion",
+    "Pour créer le réseau local, vous devez activer manuellement le 'Partage de connexion' (Hotspot) dans l'application Réglages.",
+    [{ text: "J'ai compris" }]
+  );
+};
+
+const openHotspotSettingsAndroid = () => {
+  // Sur Android, on tente d'ouvrir directement l'écran des réglages de tethering.
+  // L'action spécifique peut varier, mais celle-ci est la plus courante.
+  Linking.sendIntent('android.settings.TETHER_SETTINGS').catch(() => {
+    // Fallback: Ouvre les réglages généraux si l'intent échoue
+    Linking.openSettings();
+  });
+};
+
+// ----------------------------------------------------
 
 export default function Index() {
   const router = useRouter();
@@ -43,6 +70,17 @@ export default function Index() {
     }
   }
 
+  // Nouvelle fonction pour gérer l'ouverture du Hotspot
+  const handleOpenHotspot = () => {
+    if (Platform.OS === 'ios') {
+      openHotspotSettingsIOS();
+    } else if (Platform.OS === 'android') {
+      openHotspotSettingsAndroid();
+    } else {
+      Alert.alert("Information", "Cette fonctionnalité n'est pas supportée sur cette plateforme.");
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -56,6 +94,7 @@ export default function Index() {
           </View>
 
           <View style={styles.card}>
+            {/* ... Champs Email et Mot de passe ... */}
             <Text style={styles.label}>Email</Text>
             <TextInput
               value={email}
@@ -77,14 +116,28 @@ export default function Index() {
               style={styles.input}
             />
 
+            {/* Bouton pour se connecter */}
             <TouchableOpacity
               style={styles.button}
               onPress={onLogin}
               activeOpacity={0.85}
+              disabled={loading} // Désactive le bouton pendant le chargement
             >
-              <Text style={styles.buttonText}>Se connecter</Text>
+              <Text style={styles.buttonText}>
+                {loading ? "Connexion..." : "Se connecter"}
+              </Text>
             </TouchableOpacity>
 
+            {/* Nouveau Bouton pour le Hotspot */}
+            <TouchableOpacity
+              style={[styles.button, styles.hotspotButton]} 
+              onPress={handleOpenHotspot}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonText}>Ouvrir les réglages Hotspot</Text>
+            </TouchableOpacity>
+            
+            {/* ... Lien d'inscription ... */}
             <TouchableOpacity onPress={() => router.push("/signup")}>
               <Text style={styles.forgot}>Pas de compte ? s'inscrire</Text>
             </TouchableOpacity>
@@ -154,9 +207,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
+  // Style spécifique pour le bouton Hotspot pour le différencier légèrement
+  hotspotButton: {
+    marginTop: 10, // Réduire la marge après le bouton de connexion
+    backgroundColor: "#f97316", // Couleur orange pour le différencier
+  },
   forgot: {
     color: "#9ca3af",
-    marginTop: 12,
+    marginTop: 18, // Augmenter la marge du lien
     textAlign: "center",
   },
   footer: {

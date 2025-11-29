@@ -13,18 +13,33 @@ import {
   Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { login, getUser, logout } from "../services/api"; 
 
 export default function Index() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function onLogin() {
+  async function onLogin() {
     if (!email || !password) {
       Alert.alert("Erreur", "Veuillez entrer votre email et mot de passe.");
       return;
-    } else {
-      router.push("/main");
+    }
+
+    setLoading(true);
+
+    try {
+      await login(email, password);
+      
+      console.log("Login succès, redirection...");
+      router.replace("/(tabs)/home"); 
+      
+    } catch (error: any) {
+      console.log("Erreur login:", error);
+      Alert.alert("Accès refusé", "Email ou mot de passe incorrect.");
+    } finally {
+      setLoading(false);
     }
   }
 

@@ -11,8 +11,10 @@ import {
   Alert,
   TouchableWithoutFeedback,
   Keyboard,
+  ActivityIndicator, 
 } from "react-native";
 import { useRouter } from "expo-router";
+import { register } from "../services/api"; 
 
 export default function Signup() {
   const router = useRouter();
@@ -20,19 +22,29 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false); 
 
-  // Implementer la logique d'inscription a completer
-  function onSignup() {
+  // logique connectée au backend
+  async function onSignup() {
     if (password !== confirmPassword) {
       Alert.alert("Erreur", "Les mots de passe ne correspondent pas.");
       return;
     }
+    setLoading(true); 
+    try {
+      await register(name, email, password);
 
-    Alert.alert(
-      "Inscription",
-      `Nom: ${name}\nEmail: ${email}\nCompte créé avec succès !`
-    );
-    router.back();
+      Alert.alert(
+        "Inscription",
+        `Bienvenue ${name} !\nCompte créé avec succès.`
+      );
+      router.replace("/(tabs)/home");
+    } catch (error: any) {
+      const message = error.message || "Une erreur est survenue.";
+      Alert.alert("Erreur", message);
+    } finally {
+      setLoading(false); 
+    }
   }
 
   return (
@@ -95,8 +107,13 @@ export default function Signup() {
               style={styles.button}
               onPress={onSignup}
               activeOpacity={0.85}
+              disabled={loading} // Désactiver le bouton pendant le chargement
             >
-              <Text style={styles.buttonText}>S'inscrire</Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>S'inscrire</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => router.back()}>

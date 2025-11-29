@@ -1,21 +1,20 @@
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  StatusBar,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  StatusBar,
-  Alert,
   TouchableWithoutFeedback,
-  Keyboard,
-  Linking, // <-- Importation de Linking pour ouvrir les réglages
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-// Assurez-vous que le chemin d'accès au service API est correct
-import { login, getUser, logout } from "../services/api"; 
+import { login } from "../services/api";
 
 // --- Fonctions d'Ouverture des Réglages Hotspot ---
 const openHotspotSettingsIOS = () => {
@@ -48,6 +47,48 @@ export default function Index() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const openHotspotSettings = async () => {
+    if (Platform.OS === "ios") {
+
+      const urls = [
+        "App-Prefs:root=INTERNET_TETHERING",
+        "App-Prefs:root=MOBILE_DATA_SETTINGS_ID&path=INTERNET_TETHERING",
+        "prefs:root=INTERNET_TETHERING",
+      ];
+      
+      for (const url of urls) {
+        try {
+          const canOpen = await Linking.canOpenURL(url);
+          if (canOpen) {
+            await Linking.openURL(url);
+            return;
+          }
+        } catch (err) {
+          console.log(`Failed to open ${url}:`, err);
+        }
+      }
+      
+
+      Linking.openSettings();
+    } else {
+
+      Alert.alert(
+        "Paramètres Hotspot",
+        "Veuillez naviguer vers : Réseaux et Internet > Point d'accès et partage de connexion",
+        [
+          {
+            text: "Annuler",
+            style: "cancel"
+          },
+          {
+            text: "Ouvrir les paramètres",
+            onPress: () => Linking.openSettings()
+          }
+        ]
+      );
+    }
+  };
+
   async function onLogin() {
     if (!email || !password) {
       Alert.alert("Erreur", "Veuillez entrer votre email et mot de passe.");
@@ -58,10 +99,9 @@ export default function Index() {
 
     try {
       await login(email, password);
-      
+
       console.log("Login succès, redirection...");
-      router.replace("/(tabs)/home"); 
-      
+      router.replace("/(tabs)/home");
     } catch (error: any) {
       console.log("Erreur login:", error);
       Alert.alert("Accès refusé", "Email ou mot de passe incorrect.");
@@ -141,6 +181,13 @@ export default function Index() {
             <TouchableOpacity onPress={() => router.push("/signup")}>
               <Text style={styles.forgot}>Pas de compte ? s'inscrire</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.hotspotButton}
+              onPress={openHotspotSettings}
+            >
+              <Text style={styles.hotspotButtonText}>Ouvrir les paramètres Hotspot</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
@@ -216,6 +263,20 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     marginTop: 18, // Augmenter la marge du lien
     textAlign: "center",
+  },
+  hotspotButton: {
+    marginTop: 12,
+    backgroundColor: "#1f2937",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#374151",
+  },
+  hotspotButtonText: {
+    color: "#9ca3af",
+    fontWeight: "500",
+    fontSize: 14,
   },
   footer: {
     marginTop: 22,

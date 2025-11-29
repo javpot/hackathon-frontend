@@ -14,8 +14,27 @@ export default function RootLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="signup" options={{ headerShown: false }} />
-      <Stack.Screen name="main" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="emetteur1"
+        options={{
+          title: "Émetteur",
+          headerBackTitle: "Back",
+        }}
+      />
+      <Stack.Screen
+        name="emetteur2"
+        options={{
+          title: "Émetteur 2",
+          headerBackTitle: "Back",
+        }}
+      />
+      <Stack.Screen
+        name="product"
+        options={{
+          title: "Détail du produit",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

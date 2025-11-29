@@ -1,183 +1,105 @@
-import React, { useState } from "react";
+import React from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
+  Text,
+  View,
+  TouchableOpacity,
+  SafeAreaView,
   StatusBar,
-  Alert,
-  TouchableWithoutFeedback,
-  Keyboard,
-  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { login, getUser, logout } from "../services/api";
 
 export default function Index() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const openHotspotSettingsIOS = () => {
-    // Tente d'ouvrir directement le menu Partage de connexion
-    Linking.openURL(
-      "App-Prefs:root=MOBILE_DATA_SETTINGS_ID&path=INTERNET_TETHERING"
-    ).catch((err) => {
-      // 👇 LOG DE L'ERREUR ICI
-      console.error("Erreur lors de l'ouverture du menu Hotspot :", err);
-
-      // Fallback : Ouvre les réglages généraux si le lien spécifique échoue
-      Linking.openSettings();
-    });
-  };
-
-  async function onLogin() {
-    if (!email || !password) {
-      Alert.alert("Erreur", "Veuillez entrer votre email et mot de passe.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      await login(email, password);
-
-      console.log("Login succès, redirection...");
-      router.replace("/(tabs)/home");
-    } catch (error: any) {
-      console.log("Erreur login:", error);
-      Alert.alert("Accès refusé", "Email ou mot de passe incorrect.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <SafeAreaView style={styles.container}>
+      {/* Configure la barre de statut pour qu'elle soit blanche sur fond noir */}
       <StatusBar barStyle="light-content" />
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.inner}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Hackathon ETS</Text>
-          </View>
 
-          <View style={styles.card}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="votre.email@exemple.com"
-              placeholderTextColor="#999"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              style={styles.input}
-            />
+      <View style={styles.content}>
+        {/* Titre */}
+        <Text style={styles.title}>Veuillez choisir un choix</Text>
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Mot de passe</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              placeholderTextColor="#999"
-              secureTextEntry
-              style={styles.input}
-            />
+        {/* Groupe Boutons */}
+        <View style={styles.buttonGroup}>
+          {/* Bouton Émetteur (Plein) */}
+          <TouchableOpacity
+            style={styles.primaryButton}
+            activeOpacity={0.8}
+            onPress={() => router.push("/emetteur2")}
+          >
+            <Text style={styles.primaryButtonText}>Émetteur</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.button}
-              onPress={onLogin}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.buttonText}>Se connecter</Text>
-            </TouchableOpacity>
+          {/* Ligne de séparation */}
+          <View style={styles.separator} />
 
-            <TouchableOpacity onPress={openHotspotSettingsIOS}>
-              <Text style={styles.forgot}>Pas de compte ? s'inscrire</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Team YVL</Text>
-          </View>
+          {/* Bouton Récepteur (Contour) */}
+          <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8}>
+            <Text style={styles.secondaryButtonText}>Récepteur</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0f1724",
+    backgroundColor: "#000000", // Fond noir complet
   },
-  inner: {
+  content: {
     flex: 1,
-    padding: 20,
-    justifyContent: "center",
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 20,
+    justifyContent: "center", // Centre verticalement
+    alignItems: "center", // Centre horizontalement
+    paddingHorizontal: 20,
   },
   title: {
-    color: "#fff",
-    fontSize: 28,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  card: {
-    backgroundColor: "#0b1220",
-    borderRadius: 14,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  label: {
-    color: "#d1d5db",
-    fontSize: 13,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: "#071025",
-    color: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    fontSize: 15,
-  },
-  button: {
-    marginTop: 18,
-    backgroundColor: "#3b82f6",
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
+    color: "#FFFFFF",
+    fontSize: 20,
     fontWeight: "600",
-    fontSize: 16,
-  },
-  forgot: {
-    color: "#9ca3af",
-    marginTop: 12,
+    marginBottom: 40,
     textAlign: "center",
   },
-  footer: {
-    marginTop: 22,
+  buttonGroup: {
+    width: "100%",
+    maxWidth: 320, // Limite la largeur sur les grands écrans (tablettes)
     alignItems: "center",
   },
-  footerText: {
-    color: "#9ca3af",
-    fontSize: 13,
+  primaryButton: {
+    width: "100%",
+    backgroundColor: "#A84420", // Couleur orange brique
+    paddingVertical: 16,
+    borderRadius: 30, // Coins très arrondis
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  separator: {
+    width: "100%",
+    height: 1,
+    backgroundColor: "#555555", // Gris foncé pour la ligne
+    marginVertical: 25, // Espace en haut et en bas de la ligne
+  },
+  secondaryButton: {
+    width: "100%",
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    borderColor: "#555555", // Bordure grise
+    paddingVertical: 14, // Légèrement moins haut pour compenser la bordure
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryButtonText: {
+    color: "#A84420", // Texte orange brique
+    fontSize: 18,
+    fontWeight: "600",
   },
 });

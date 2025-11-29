@@ -15,12 +15,15 @@ import {
   View,
 } from "react-native";
 import { login } from "../services/api";
+import { serverIsRunning, startServer } from "../services/localServer";
 
 export default function Index() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [serverStatus, setServerStatus] = useState<"idle" | "starting" | "running" | "error">("idle");
+  const [serverLogs, setServerLogs] = useState<string[]>([]);
 
   const openHotspotSettings = async () => {
     if (Platform.OS === "ios") {
@@ -85,6 +88,33 @@ export default function Index() {
     }
   }
 
+  async function onStartServer() {
+    if (serverIsRunning()) {
+      addLog("Server is already running!");
+      setServerStatus("running");
+      return;
+    }
+
+    setServerStatus("starting");
+    addLog("Starting server...");
+
+    try {
+      await startServer();
+      setServerStatus("running");
+      addLog("✅ Server started successfully!");
+      addLog(`Server listening on 0.0.0.0:3000`);
+    } catch (error: any) {
+      setServerStatus("error");
+      addLog(`❌ Error: ${error.message || String(error)}`);
+      console.error("Server start error:", error);
+    }
+  }
+
+  function addLog(message: string) {
+    const timestamp = new Date().toLocaleTimeString();
+    setServerLogs((prev) => [...prev, `[${timestamp}] ${message}`]);
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -137,6 +167,44 @@ export default function Index() {
             >
               <Text style={styles.hotspotButtonText}>Ouvrir les paramètres Hotspot</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.serverButton]}
+              onPress={onStartServer}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonText}>
+                {serverStatus === "starting" ? "Starting Server..." : 
+                 serverStatus === "running" ? "✅ Server Running" : 
+                 "Test Server"}
+              </Text>
+            </TouchableOpacity>
+
+            {serverStatus !== "idle" && (
+              <View style={styles.serverStatusContainer}>
+                <Text style={styles.serverStatusTitle}>Server Status:</Text>
+                <Text style={[
+                  styles.serverStatusText,
+                  serverStatus === "running" && styles.serverStatusSuccess,
+                  serverStatus === "error" && styles.serverStatusError
+                ]}>
+                  {serverStatus === "starting" ? "🔄 Starting..." :
+                   serverStatus === "running" ? "✅ Running on port 3000" :
+                   "❌ Error"}
+                </Text>
+                
+                {serverLogs.length > 0 && (
+                  <View style={styles.logsContainer}>
+                    <Text style={styles.logsTitle}>Logs:</Text>
+                    <View style={styles.logsContent}>
+                      {serverLogs.map((log, index) => (
+                        <Text key={index} style={styles.logText}>{log}</Text>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           <View style={styles.footer}>
@@ -229,5 +297,53 @@ const styles = StyleSheet.create({
   footerText: {
     color: "#9ca3af",
     fontSize: 13,
+  },
+  serverButton: {
+    marginTop: 12,
+    backgroundColor: "#10b981",
+  },
+  serverStatusContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "#071025",
+    borderRadius: 8,
+  },
+  serverStatusTitle: {
+    color: "#d1d5db",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  serverStatusText: {
+    color: "#9ca3af",
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  serverStatusSuccess: {
+    color: "#10b981",
+  },
+  serverStatusError: {
+    color: "#ef4444",
+  },
+  logsContainer: {
+    marginTop: 8,
+  },
+  logsTitle: {
+    color: "#d1d5db",
+    fontSize: 11,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  logsContent: {
+    maxHeight: 150,
+    backgroundColor: "#0a0f1a",
+    borderRadius: 6,
+    padding: 8,
+  },
+  logText: {
+    color: "#6b7280",
+    fontSize: 10,
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    marginBottom: 2,
   },
 });

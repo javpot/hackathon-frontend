@@ -11,15 +11,29 @@ import {
   Alert,
   TouchableWithoutFeedback,
   Keyboard,
+  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { login, getUser, logout } from "../services/api"; 
+import { login, getUser, logout } from "../services/api";
 
 export default function Index() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const openHotspotSettingsIOS = () => {
+    // Tente d'ouvrir directement le menu Partage de connexion
+    Linking.openURL(
+      "App-Prefs:root=MOBILE_DATA_SETTINGS_ID&path=INTERNET_TETHERING"
+    ).catch((err) => {
+      // 👇 LOG DE L'ERREUR ICI
+      console.error("Erreur lors de l'ouverture du menu Hotspot :", err);
+
+      // Fallback : Ouvre les réglages généraux si le lien spécifique échoue
+      Linking.openSettings();
+    });
+  };
 
   async function onLogin() {
     if (!email || !password) {
@@ -31,10 +45,9 @@ export default function Index() {
 
     try {
       await login(email, password);
-      
+
       console.log("Login succès, redirection...");
-      router.replace("/(tabs)/home"); 
-      
+      router.replace("/(tabs)/home");
     } catch (error: any) {
       console.log("Erreur login:", error);
       Alert.alert("Accès refusé", "Email ou mot de passe incorrect.");
@@ -85,7 +98,7 @@ export default function Index() {
               <Text style={styles.buttonText}>Se connecter</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push("/signup")}>
+            <TouchableOpacity onPress={openHotspotSettingsIOS}>
               <Text style={styles.forgot}>Pas de compte ? s'inscrire</Text>
             </TouchableOpacity>
           </View>

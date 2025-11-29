@@ -128,6 +128,7 @@ export default function Index() {
           </View>
 
           <View style={styles.card}>
+            {/* ... Champs Email et Mot de passe ... */}
             <Text style={styles.label}>Email</Text>
             <TextInput
               value={email}
@@ -149,14 +150,28 @@ export default function Index() {
               style={styles.input}
             />
 
+            {/* Bouton pour se connecter */}
             <TouchableOpacity
               style={styles.button}
               onPress={onLogin}
               activeOpacity={0.85}
+              disabled={loading} // Désactive le bouton pendant le chargement
             >
-              <Text style={styles.buttonText}>Se connecter</Text>
+              <Text style={styles.buttonText}>
+                {loading ? "Connexion..." : "Se connecter"}
+              </Text>
             </TouchableOpacity>
 
+            {/* Nouveau Bouton pour le Hotspot */}
+            <TouchableOpacity
+              style={[styles.button, styles.hotspotButton]} 
+              onPress={handleOpenHotspot}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonText}>Ouvrir les réglages Hotspot</Text>
+            </TouchableOpacity>
+            
+            {/* ... Lien d'inscription ... */}
             <TouchableOpacity onPress={() => router.push("/signup")}>
               <Text style={styles.forgot}>Pas de compte ? s'inscrire</Text>
             </TouchableOpacity>
@@ -271,9 +286,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
+  // Style spécifique pour le bouton Hotspot pour le différencier légèrement
+  hotspotButton: {
+    marginTop: 10, // Réduire la marge après le bouton de connexion
+    backgroundColor: "#f97316", // Couleur orange pour le différencier
+  },
   forgot: {
     color: "#9ca3af",
-    marginTop: 12,
+    marginTop: 18, // Augmenter la marge du lien
     textAlign: "center",
   },
   hotspotButton: {

@@ -780,11 +780,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 50,
     gap: 6,
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   statusText: {
     color: "#ffffff",
     fontWeight: "800",
     fontSize: 12,
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   connectionBadgeContainer: {
     flexDirection: 'row',
@@ -816,6 +821,7 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: 'rgba(156, 163, 175, 0.3)',
+    flexShrink: 0,
   },
   offlineIndicator: {
     flexDirection: 'row',

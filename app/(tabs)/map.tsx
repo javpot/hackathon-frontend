@@ -111,12 +111,23 @@ export default function MapScreen() {
         ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
-        initialRegion={defaultRegion}
+        initialRegion={initialRegion}
         showsUserLocation={true}
         showsMyLocationButton={true}
         userInterfaceStyle="dark"
         loadingEnabled={true}
         mapPadding={{ top: 0, right: 0, bottom: 0, left: 0 }}
+        onMapReady={() => {
+          // Center on user location when map is ready
+          if (mapRef.current && location) {
+            mapRef.current.animateToRegion({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }, 500);
+          }
+        }}
       >
         {alerts.map((a: MapAlert, index: number) =>
           a.coords ? (
@@ -232,8 +243,8 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 10, fontWeight: "500" },
   fab: {
     position: "absolute",
-    right: 20,
-    bottom: Platform.OS === "ios" ? 110 : 90,
+    left: 20,
+    bottom: Platform.OS === "ios" ? 120 : 100,
     width: 56,
     height: 56,
     borderRadius: 28,

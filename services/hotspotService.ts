@@ -14,22 +14,19 @@ import { checkHostAlive, testServerConnection } from './localclient';
 
 /**
  * Get the gateway IP address (host IP when connected to hotspot)
- * For Android emulators: Returns 10.0.2.2 (maps to host machine)
- * For real Android devices: Usually 192.168.43.1
- * On iOS hotspot: Usually 172.20.10.1
+ * For iOS hotspot: Usually 172.20.10.1
+ * For Android devices: Usually 192.168.43.1
  * 
  * TODO: Replace with actual gateway detection when implementing real hotspot
  */
 export async function getHotspotGatewayIP(): Promise<string | null> {
   try {
-    if (Platform.OS === 'android') {
-      // For Android emulators, use 10.0.2.2 (maps to host machine's localhost)
-      // This requires ADB reverse port forwarding: adb reverse tcp:3000 tcp:3000
-      // For real devices, would be the hotspot gateway (usually 192.168.43.1)
-      return '10.0.2.2'; // Emulator mode - maps to host machine
-    } else if (Platform.OS === 'ios') {
+    if (Platform.OS === 'ios') {
       // iOS hotspot default gateway
       return '172.20.10.1';
+    } else if (Platform.OS === 'android') {
+      // Android hotspot default gateway (for real devices)
+      return '192.168.43.1';
     }
     return null;
   } catch (error) {
@@ -40,45 +37,25 @@ export async function getHotspotGatewayIP(): Promise<string | null> {
 
 /**
  * Discover the host IP by scanning common hotspot gateway IPs
- * For emulators: Checks 10.0.2.2 (maps to host machine)
- * For real devices: Checks common hotspot gateway IPs
+ * For iOS: Checks 172.20.10.1 (iOS hotspot default)
+ * For Android: Checks 192.168.43.1 (Android hotspot default)
  * Returns the first reachable host
  */
 export async function discoverHostIP(
   port: number = DEFAULT_SERVER_PORT,
   timeout: number = 2000
 ): Promise<string | null> {
-  console.log('[Hotspot] 🔍 Discovering host IP...');
+  console.log('[Hotspot] 🔍 Discovering host IP on hotspot network...');
   
-  // For Android emulators, 10.0.2.2 maps to host machine's localhost
-  // This requires ADB reverse port forwarding on the host machine
-  const emulatorIP = '10.0.2.2';
-  
-  // Common hotspot gateway IPs for real devices
-  const gatewayIPs = Platform.OS === 'android' 
-    ? ['192.168.43.1', '192.168.137.1', '10.0.0.1'] // Android hotspot common IPs
-    : ['172.20.10.1', '192.168.2.1']; // iOS hotspot common IPs
+  // Common hotspot gateway IPs
+  const gatewayIPs = Platform.OS === 'ios'
+    ? ['172.20.10.1', '192.168.2.1'] // iOS hotspot common IPs
+    : ['192.168.43.1', '192.168.137.1', '10.0.0.1']; // Android hotspot common IPs
   
   // Try multiple ports in case server is using a different port (after hot reload)
   const portsToTry = [port, port + 1, port + 2, port + 3, port + 4];
   
-  // For emulators, check 10.0.2.2 first (most common case)
-  if (Platform.OS === 'android') {
-    for (const testPort of portsToTry) {
-      try {
-        console.log(`[Hotspot] Checking emulator IP ${emulatorIP}:${testPort}...`);
-        const isAlive = await checkHostAlive(emulatorIP, testPort, timeout);
-        if (isAlive) {
-          console.log(`[Hotspot] ✅ Found host at ${emulatorIP}:${testPort} (emulator mode)`);
-          return emulatorIP;
-        }
-      } catch (error) {
-        console.log(`[Hotspot] ❌ ${emulatorIP}:${testPort} not reachable`);
-      }
-    }
-  }
-  
-  // Check hotspot gateway IPs (for real devices)
+  // Check hotspot gateway IPs
   for (const ip of gatewayIPs) {
     for (const testPort of portsToTry) {
       try {
@@ -95,7 +72,7 @@ export async function discoverHostIP(
     }
   }
   
-  console.log('[Hotspot] ❌ No host found');
+  console.log('[Hotspot] ❌ No host found on hotspot network');
   return null;
 }
 

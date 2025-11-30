@@ -129,14 +129,14 @@ export default function ConnectionModeScreen() {
         setHostIPAddress(gatewayIP);
       }
       
-      // For emulators, show ADB instructions
-      const isEmulator = gatewayIP === '10.0.2.2';
-      const portMessage = actualPort !== 3001 ? `\n\n⚠️ Note: Using port ${actualPort} (port 3001 was in use)\nRun: "adb reverse tcp:${actualPort} tcp:${actualPort}"` : `\n\nRun: "adb reverse tcp:${actualPort} tcp:${actualPort}"`;
-      const message = isEmulator
-        ? `Server started on port ${actualPort}! You are now a host.${portMessage}\n2. Client emulator should connect to: 10.0.2.2:${actualPort}`
+      // Show platform-specific instructions
+      const message = Platform.OS === 'ios'
+        ? gatewayIP 
+          ? `Server started on port ${actualPort}! Your host IP is: ${gatewayIP}\n\nClients should connect to ${gatewayIP}:${actualPort} after joining your iOS hotspot.`
+          : `Server started on port ${actualPort}! You are now a host.\n\nClients should connect to your iOS hotspot IP (usually 172.20.10.1:${actualPort}).`
         : gatewayIP 
           ? `Server started on port ${actualPort}! Your host IP is: ${gatewayIP}\n\nClients should connect to ${gatewayIP}:${actualPort} after joining your hotspot.`
-          : `Server started on port ${actualPort}! You are now a host.\n\nClients should connect to your hotspot IP:${actualPort} (usually 192.168.43.1:${actualPort} for Android).`;
+          : `Server started on port ${actualPort}! You are now a host.\n\nClients should connect to your hotspot IP (usually 192.168.43.1:${actualPort} for Android).`;
       
       Alert.alert('Success', message);
       // Navigate to home after a short delay
@@ -355,20 +355,10 @@ export default function ConnectionModeScreen() {
 
           <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
             <Text style={styles.instructionText}>
-              {Platform.OS === 'android' 
-                ? 'For Android Emulators: Just start the server below, then run ADB command on your computer.\n\nFor Real Devices: Enable hotspot first, then start server.'
-                : 'To become a host, you need to enable your device\'s hotspot first.'}
+              {Platform.OS === 'ios'
+                ? 'To become a host, enable your iOS hotspot first, then start the server below.'
+                : 'To become a host, enable your device\'s hotspot first, then start the server below.'}
             </Text>
-
-            {Platform.OS === 'android' && (
-              <View style={styles.infoBox}>
-                <Ionicons name="information-circle" size={16} color="#4ade80" />
-                <Text style={styles.infoText}>
-                  Emulator Mode: After starting server, run on your computer:{'\n'}
-                  <Text style={styles.codeText}>adb reverse tcp:3001 tcp:3001</Text>
-                </Text>
-              </View>
-            )}
 
             <TouchableOpacity
               style={styles.linkButton}
@@ -380,9 +370,9 @@ export default function ConnectionModeScreen() {
             </TouchableOpacity>
 
             <Text style={styles.stepText}>
-              {Platform.OS === 'android'
-                ? 'For Emulators:\n1. Click "Start Host" below\n2. On your computer, run: "adb reverse tcp:3001 tcp:3001"\n3. Clients can connect using 10.0.2.2\n\nFor Real Devices:\n1. Enable your device\'s hotspot\n2. Return to this app\n3. Click "Start Host" below'
-                : '1. Enable your device\'s hotspot\n2. Return to this app\n3. Click the Host button below'}
+              {Platform.OS === 'ios'
+                ? '1. Enable your iOS hotspot in Settings\n2. Return to this app\n3. Click "Start Host" below\n4. Note your hotspot IP (usually 172.20.10.1)'
+                : '1. Enable your device\'s hotspot\n2. Return to this app\n3. Click "Start Host" below'}
             </Text>
 
             <TouchableOpacity
@@ -407,9 +397,9 @@ export default function ConnectionModeScreen() {
                   <View style={styles.ipBadge}>
                     <Ionicons name="information-circle" size={16} color="#4ade80" />
                     <Text style={styles.ipText}>
-                      {hostIPAddress === '10.0.2.2' 
-                        ? 'Emulator Mode: Clients use 10.0.2.2\n(Run: adb reverse tcp:3001 tcp:3001)'
-                        : `Host IP: ${hostIPAddress}`}
+                      {Platform.OS === 'ios'
+                        ? `iOS Hotspot IP: ${hostIPAddress}\nClients connect to this IP`
+                        : `Host IP: ${hostIPAddress}\nClients connect to this IP`}
                     </Text>
                   </View>
                 )}
@@ -522,10 +512,12 @@ export default function ConnectionModeScreen() {
             />
 
             <Text style={styles.hintText}>
-              {Platform.OS === 'android' 
-                ? 'For Android Emulators:\n1. Host: Start server, then run "adb reverse tcp:3001 tcp:3001" on your computer\n2. Client: Use 10.0.2.2 (default) or click "Discover Host"\n\nFor Real Devices:\n1. Connect to host\'s hotspot\n2. Click "Discover Host" or enter IP (usually 192.168.43.1)'
-                : selectedNetwork 
-                  ? `Selected: ${selectedNetwork}. Click "Discover Host" or enter the host IP address.`
+              {Platform.OS === 'ios'
+                ? selectedNetwork 
+                  ? `Selected: ${selectedNetwork}. Click "Discover Host" or enter the host IP address (usually 172.20.10.1).`
+                  : 'Connect to the host\'s iOS hotspot, then click "Discover Host" or enter the host IP (usually 172.20.10.1).'
+                : Platform.OS === 'android'
+                  ? 'Connect to the host\'s hotspot, then click "Discover Host" or enter the host IP (usually 192.168.43.1).'
                   : 'Connect to the host\'s hotspot, then click "Discover Host" or enter the host IP manually.'}
             </Text>
 

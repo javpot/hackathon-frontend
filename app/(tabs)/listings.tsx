@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useAlerts } from '../../contexts/AlertContext';
 import { checkHostAlive, pollListingsFromHost } from '../../services/localclient';
-import { getAllServerListings } from '../../services/localServer';
 
 const { width } = Dimensions.get('window');
 
@@ -38,7 +37,7 @@ export default function Listings() {
   const { addAlert } = useAlerts();
   const [barterListings, setBarterListings] = useState<ServerListing[]>([]);
   const [loading, setLoading] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<'host' | 'client' | 'offline' | null>(null);
+  const [connectionMode, setConnectionMode] = useState<'client' | null>(null);
   const [hostIP, setHostIP] = useState<string>('');
   const [vendorID, setVendorID] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,50 +83,27 @@ export default function Listings() {
 
   const loadBarterListings = async () => {
     try {
-      if (connectionMode === 'host') {
-        const { serverIsRunning } = await import('../../services/localServer');
-        if (!serverIsRunning()) {
-          setBarterListings([]);
-          return;
-        }
+      // Client mode only - fetch listings from host
+      if (connectionMode === 'client' && hostIP) {
+        const serverListings = await pollListingsFromHost(hostIP, 3001);
+        console.log(`[Client] Received ${serverListings?.length || 0} listings from host`);
         
-        const serverListings = getAllServerListings();
-        let currentVendorID = vendorID;
-        if (!currentVendorID) {
-          const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
-          const mode = await AsyncStorage.getItem('connectionMode');
-          if (deviceVendorID && mode) {
-            currentVendorID = deviceVendorID.startsWith(`${mode}-`) 
-              ? deviceVendorID 
-              : `${mode}-${deviceVendorID}`;
-          }
-        }
+        // Filter out own listings
+        const filtered = vendorID
+          ? (serverListings || []).filter((listing: any) => 
+              listing.vendorID !== vendorID && listing.clientId !== vendorID
+            )
+          : (serverListings || []);
         
-        const baseDeviceID = currentVendorID ? currentVendorID.replace(/^(host|client)-/, '') : null;
-        const seenServerIds = new Set<string>();
-        
-        const filtered = currentVendorID 
-          ? serverListings
-              .filter(listing => {
-                if (listing.serverId && seenServerIds.has(listing.serverId)) {
-                  return false;
-                }
-                if (listing.serverId) {
-                  seenServerIds.add(listing.serverId);
-                }
-                
-                const listingVendorBaseID = listing.vendorID ? listing.vendorID.replace(/^(host|client)-/, '') : null;
-                const listingClientBaseID = listing.clientId ? listing.clientId.replace(/^(host|client)-/, '') : null;
-                
-                const isOwnListing = 
-                  (listing.vendorID && listing.vendorID === currentVendorID) ||
-                  (listing.clientId && listing.clientId === currentVendorID) ||
-                  (baseDeviceID && listingVendorBaseID && listingVendorBaseID === baseDeviceID) ||
-                  (baseDeviceID && listingClientBaseID && listingClientBaseID === baseDeviceID);
-                
-                return !isOwnListing;
-              })
-          : serverListings;
+        setBarterListings(filtered);
+      } else {
+        setBarterListings([]);
+      }
+    } catch (error) {
+      console.error('[Client] Error loading barter listings:', error);
+      setBarterListings([]);
+    }
+  };
         
         setBarterListings(filtered);
       } else if (connectionMode === 'client' && hostIP) {

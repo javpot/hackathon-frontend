@@ -4,13 +4,13 @@ import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    FlatList,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import AlertMarker from "../../components/AlertMarker";
 import AlertModal from "../../components/AlertModal";

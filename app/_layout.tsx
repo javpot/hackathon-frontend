@@ -54,8 +54,6 @@ export default function RootLayout() {
         {/* Listings management screen */}
         <Stack.Screen name="my-listings" options={{ headerShown: false }} />
 
-        {/* Connection mode screen */}
-        <Stack.Screen name="connection-mode" options={{ headerShown: false }} />
       </Stack>
     </AlertProvider>
   );

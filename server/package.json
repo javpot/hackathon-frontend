@@ -1,0 +1,18 @@
+{
+  "name": "survia-host-server",
+  "version": "1.0.0",
+  "description": "Host server for Survia app listing sync",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5"
+  },
+  "keywords": ["survia", "host", "server"],
+  "author": "",
+  "license": "ISC"
+}
+

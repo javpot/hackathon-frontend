@@ -24,7 +24,6 @@ import {
 import { useAlerts } from '../contexts/AlertContext';
 import { addListing, deleteAllListings, deleteListingById, getAllListings, getAllRessources, initDB, Listing, Resource } from '../database/db';
 import { checkHostAlive, deleteListingFromHost, sendListingToHost } from '../services/localclient';
-import { addListingToStore } from '../services/localServer';
 
 const { width } = Dimensions.get('window');
 
@@ -36,7 +35,7 @@ export default function ListingsScreen() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<'host' | 'client' | 'offline' | null>(null);
+  const [connectionMode, setConnectionMode] = useState<'client' | null>(null);
   const [hostIP, setHostIP] = useState<string>('');
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
 
@@ -96,24 +95,16 @@ export default function ListingsScreen() {
     }
 
     const initialize = async () => {
-      // If host, sync existing SQLite listings to server store
-      if (connectionMode === 'host') {
-        const { serverIsRunning } = await import('../services/localServer');
-        if (serverIsRunning()) {
-          await syncListingsToServer();
-        } else {
-          console.log('[Host] ⚠️ Server is not running - cannot sync listings');
-          return;
-        }
-      } else if (connectionMode === 'client' && hostIP) {
+      // Client mode only - sync existing listings to host
+      if (connectionMode === 'client' && hostIP) {
         // If client, sync existing listings to host
         try {
-          const isAlive = await checkHostAlive(hostIP, 3001, 5000);
-          if (!isAlive) {
+          const isAlive = await checkHostAlive(hostIP, 3001);
+          if (isAlive) {
+            await syncClientListingsToHost();
+          } else {
             console.log('[Client] ⚠️ Host is not alive during initialization');
-            return;
           }
-          await syncClientListingsToHost();
         } catch (error) {
           console.error('[Client] Error during initial sync:', error);
         }
@@ -121,32 +112,6 @@ export default function ListingsScreen() {
     };
     
     initialize();
-
-    // Set up health check for client mode
-    let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
-    if (connectionMode === 'client' && hostIP) {
-      healthCheckInterval = setInterval(async () => {
-        try {
-          const isAlive = await checkHostAlive(hostIP, 3001, 5000);
-          if (!isAlive) {
-            console.log('[Client] ⚠️ Host is not responding');
-            await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
-            router.replace('/connection-mode');
-          }
-        } catch (error) {
-          console.error('[Client] Error during health check:', error);
-          if (vendorID && hostIP) {
-            try {
-              await deleteListingFromHost(vendorID, hostIP, 3001);
-            } catch (cleanupError) {
-              console.error('[Client] Error cleaning up listings:', cleanupError);
-            }
-          }
-          await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
-          router.replace('/connection-mode');
-        }
-      }, 7000);
-    }
 
     return () => {
       if (healthCheckInterval) {
@@ -194,44 +159,6 @@ export default function ListingsScreen() {
     }
   };
 
-  const syncListingsToServer = async () => {
-    try {
-      // Ensure DB is initialized
-      const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
-      if (deviceVendorID) {
-        await initDB(deviceVendorID);
-      }
-      // Get all listings from SQLite
-      const localListings = await getAllListings();
-      console.log(`[Host] Syncing ${localListings.length} listings from SQLite to server store`);
-      
-      // Add each listing to server store (if not already there)
-      for (const listing of localListings) {
-        // Update vendorID if it's the old simulator-device format
-        let listingToSync = { ...listing };
-        if (listingToSync.vendorID === 'simulator-device' && connectionMode) {
-          listingToSync.vendorID = `${connectionMode}-${listingToSync.vendorID}`;
-          console.log(`[Host] Updated listing vendorID from simulator-device to ${listingToSync.vendorID}`);
-        }
-        
-        // Check if listing already exists in server store
-        const existingListings = getAllServerListings();
-        const exists = existingListings.some(
-          l => l.vendorID === listingToSync.vendorID && 
-               l.description === listingToSync.description &&
-               l.productsInReturn === listingToSync.productsInReturn
-        );
-        
-        if (!exists) {
-          addListingToStore(listingToSync);
-          console.log(`[Host] Synced listing to server store: ${listingToSync.vendorName} (vendorID: ${listingToSync.vendorID})`);
-        }
-      }
-      console.log(`[Host] Sync complete. Server store now has ${getAllServerListings().length} listings`);
-    } catch (error) {
-      console.error('[Host] Error syncing listings to server:', error);
-    }
-  };
 
   const loadUserData = async () => {
     try {
@@ -505,8 +432,8 @@ export default function ListingsScreen() {
           await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
           // Clear barter listings
           setBarterListings([]);
-          // Force navigation back to connection mode
-          router.replace('/connection-mode');
+          // Clear barter listings and continue (don't navigate)
+          setBarterListings([]);
           return;
         }
         console.log(`[Client] Received ${serverListings?.length || 0} listings from host, My vendorID: "${vendorID}"`);
@@ -656,12 +583,6 @@ export default function ListingsScreen() {
               await deleteAllListings();
               console.log('[Clear] ✅ All listings deleted from SQLite');
               
-              // Clear server store (if host)
-              if (connectionMode === 'host') {
-                const { clearAllListings } = await import('../services/localServer');
-                clearAllListings();
-                console.log('[Clear] ✅ Server store cleared');
-              }
               
               // Clear AsyncStorage (device ID, connection mode, host IP, username)
               await AsyncStorage.multiRemove(['deviceVendorID', 'connectionMode', 'hostIP', 'userName']);
@@ -770,15 +691,6 @@ export default function ListingsScreen() {
           Alert.alert('Warning', `Listing saved locally but failed to sync to host: ${error.message || 'Unknown error'}`);
           // Continue anyway - listing is saved locally
         }
-      } else if (connectionMode === 'host') {
-        // Host adds directly to its own server store (so clients can see it)
-        try {
-          const serverId = addListingToStore(newListing);
-          console.log(`[Host] Listing added directly to server store with serverId: ${serverId}`);
-        } catch (error) {
-          console.error('[Host] Failed to add listing to server store:', error);
-        }
-      }
       
       // Reset form (but keep vendor name and ID)
       const storedName = await AsyncStorage.getItem('userName');

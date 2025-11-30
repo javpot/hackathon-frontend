@@ -50,7 +50,7 @@ const Home: React.FC = () => {
   // --- 1. ÉTATS (STATE) ---
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<'host' | 'client' | 'offline' | null>(null);
+  const [connectionMode, setConnectionMode] = useState<'client' | null>(null);
   const [hostIP, setHostIP] = useState<string>('');
   const [activeUserCount, setActiveUserCount] = useState<number>(0);
   const [vendorID, setVendorID] = useState<string>('');
@@ -209,66 +209,35 @@ const Home: React.FC = () => {
     updateSurvivability();
   }, [alerts, userLocation]);
 
-  // Keep-alive and active user count tracking
+  // Keep-alive and active user count tracking (client mode only)
   useEffect(() => {
-    if (!connectionMode) {
+    if (connectionMode !== 'client' || !hostIP || !vendorID) {
       return;
     }
 
-    let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
-    let userCountInterval: ReturnType<typeof setInterval> | null = null;
+    // Client: Send keep-alive packets periodically and update active user count
+    const sendKeepAlivePacket = async () => {
+      try {
+        const count = await sendKeepAlive(vendorID, hostIP, 3001);
+        setActiveUserCount(count);
+        console.log(`[Client] 💓 Keep-alive sent, active users: ${count}`);
+      } catch (error) {
+        console.error('[Client] Failed to send keep-alive:', error);
+        // If keep-alive fails, host might be down - set count to 0
+        setActiveUserCount(0);
+      }
+    };
 
-    if (connectionMode === 'client' && hostIP && vendorID) {
-      // Client: Send keep-alive packets periodically and update active user count
-      const sendKeepAlivePacket = async () => {
-        try {
-          const count = await sendKeepAlive(vendorID, hostIP, 3001);
-          setActiveUserCount(count);
-          console.log(`[Client] 💓 Keep-alive sent, active users: ${count}`);
-        } catch (error) {
-          console.error('[Client] Failed to send keep-alive:', error);
-        }
-      };
-
-      // Send immediately, then every 10 seconds
-      sendKeepAlivePacket();
-      keepAliveInterval = setInterval(sendKeepAlivePacket, 10000);
-    } else if (connectionMode === 'host') {
-      // Host: Register itself as active and fetch active user count periodically
-      const updateHostStatus = async () => {
-        try {
-          const { getActiveUserCount: getCount, registerActiveUser } = await import('../../services/localServer');
-          
-          // Register host itself as active
-          if (vendorID) {
-            registerActiveUser(vendorID);
-          }
-          
-          // Get and update the count
-          const count = getCount();
-          setActiveUserCount(count);
-          console.log(`[Host] 👥 Active users: ${count}`);
-        } catch (error) {
-          console.error('[Host] Failed to update host status:', error);
-        }
-      };
-
-      // Update immediately, then every 5 seconds
-      updateHostStatus();
-      userCountInterval = setInterval(updateHostStatus, 5000);
-    }
+    // Send immediately, then every 10 seconds
+    sendKeepAlivePacket();
+    const keepAliveInterval = setInterval(sendKeepAlivePacket, 10000);
 
     return () => {
-      if (keepAliveInterval) {
-        clearInterval(keepAliveInterval);
-      }
-      if (userCountInterval) {
-        clearInterval(userCountInterval);
-      }
+      clearInterval(keepAliveInterval);
     };
   }, [connectionMode, hostIP, vendorID]);
 
-  // Health check for client mode
+  // Health check for client mode (optional - just logs, doesn't navigate)
   useEffect(() => {
     if (connectionMode !== 'client' || !hostIP) {
       return;
@@ -277,114 +246,48 @@ const Home: React.FC = () => {
     console.log('[Home] 🏥 Starting health check for client mode');
     const healthCheckInterval = setInterval(async () => {
       try {
-        const isAlive = await checkHostAlive(hostIP, 3001, 5000);
+        const isAlive = await checkHostAlive(hostIP, 3001);
         if (!isAlive) {
-          console.log('[Home] ⚠️ Host is not responding - cleaning up and forcing navigation');
-          // Remove client listings from host before disconnecting
-          const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
-          const mode = await AsyncStorage.getItem('connectionMode');
-          const vendorID = deviceVendorID ? (mode ? `${mode}-${deviceVendorID}` : deviceVendorID) : null;
-          
-          if (vendorID) {
-            try {
-              const { deleteListingFromHost } = await import('../../services/localclient');
-              await deleteListingFromHost(vendorID, hostIP, 3001);
-              console.log('[Home] ✅ Client listings removed from host');
-            } catch (error) {
-              console.error('[Home] Error removing listings from host:', error);
-            }
-          }
-          
-          // Clear connection info
-          await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
-          // Force navigation
-          router.replace('/connection-mode');
+          console.log('[Home] ⚠️ Host is not responding');
+          setActiveUserCount(0);
         }
       } catch (error) {
         console.error('[Home] Error during health check:', error);
-        // If health check fails, cleanup and force navigation
-        const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
-        const mode = await AsyncStorage.getItem('connectionMode');
-        const vendorID = deviceVendorID ? (mode ? `${mode}-${deviceVendorID}` : deviceVendorID) : null;
-        
-        if (vendorID && hostIP) {
-          try {
-            const { deleteListingFromHost } = await import('../../services/localclient');
-            await deleteListingFromHost(vendorID, hostIP, 3000);
-          } catch (error) {
-            // Ignore cleanup errors
-          }
-        }
-        
-        await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
-        router.replace('/connection-mode');
+        setActiveUserCount(0);
       }
-    }, 7000); // 7 seconds
+    }, 15000); // Check every 15 seconds
 
     return () => {
       clearInterval(healthCheckInterval);
-      // Cleanup: Remove client listings when component unmounts or connection mode changes
-      if (connectionMode === 'client' && hostIP) {
-        const cleanup = async () => {
-          const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
-          const mode = await AsyncStorage.getItem('connectionMode');
-          const vendorID = deviceVendorID ? (mode ? `${mode}-${deviceVendorID}` : deviceVendorID) : null;
-          
-          if (vendorID) {
-            try {
-              const { deleteListingFromHost } = await import('../../services/localclient');
-              await deleteListingFromHost(vendorID, hostIP, 3001);
-              console.log('[Home] ✅ Cleaned up client listings on unmount');
-            } catch (error) {
-              console.error('[Home] Error cleaning up listings on unmount:', error);
-            }
-          }
-        };
-        cleanup();
-      }
     };
-  }, [connectionMode, hostIP, router]);
+  }, [connectionMode, hostIP]);
 
   const handleLogout = async () => {
     try {
       // If client, remove all listings from host before disconnecting
-      if (connectionMode === 'client') {
-        const hostIP = await AsyncStorage.getItem('hostIP');
-        const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
-        const mode = await AsyncStorage.getItem('connectionMode');
-        const vendorID = deviceVendorID ? (mode ? `${mode}-${deviceVendorID}` : deviceVendorID) : null;
-        
-        if (hostIP && vendorID) {
-          console.log('[Home] 🧹 Cleaning up: Removing all client listings from host');
-          try {
-            const { deleteListingFromHost } = await import('../../services/localclient');
-            await deleteListingFromHost(vendorID, hostIP, 3000);
-            console.log('[Home] ✅ Client listings removed from host');
-          } catch (error) {
-            console.error('[Home] Error removing listings from host:', error);
-            // Continue anyway - cleanup is best effort
-          }
+      if (connectionMode === 'client' && hostIP && vendorID) {
+        console.log('[Home] 🧹 Cleaning up: Removing all client listings from host');
+        try {
+          const { deleteListingFromHost } = await import('../../services/localclient');
+          await deleteListingFromHost(vendorID, hostIP, 3001);
+          console.log('[Home] ✅ Client listings removed from host');
+        } catch (error) {
+          console.error('[Home] Error removing listings from host:', error);
+          // Continue anyway - cleanup is best effort
         }
-      }
-      
-      // If host, stop the server
-      if (connectionMode === 'host') {
-        console.log('[Home] 🛑 Stopping server...');
-        await stopServer();
-        console.log('[Home] ✅ Server stopped');
       }
       
       // Clear connection info
       await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
       console.log('[Home] ✅ Connection info cleared');
       
-      // Navigate back to connection mode
-      router.replace('/connection-mode');
+      // Navigate back to login
+      router.replace('/');
     } catch (error) {
       console.error('[Home] Error during logout:', error);
       // Still navigate even if there's an error
       await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
-      router.replace('/connection-mode');
+      router.replace('/');
     }
   };
 
@@ -420,22 +323,6 @@ const Home: React.FC = () => {
             </Text>
           </LinearGradient>
 
-          {/* Offline Mode Indicator - Same line as status badge */}
-          {connectionMode === 'offline' && (
-            <View style={styles.offlineBubble}>
-              <View style={styles.offlineIndicator}>
-                <View style={styles.offlineDot} />
-                <Text style={styles.offlineText}>Offline Mode</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.offlineLogoutButton}
-                onPress={handleLogout}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="log-out-outline" size={16} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
 
         {/* --- CONTENT (FIXED LAYOUT) --- */}

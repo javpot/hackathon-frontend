@@ -23,6 +23,13 @@ export default function RootLayout() {
         }}
       />
       <Stack.Screen
+        name="listings"
+        options={{
+          title: "Listings",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="product"
         options={{
           title: "Détail du produit",

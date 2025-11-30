@@ -160,7 +160,11 @@ const Home: React.FC = () => {
       <View style={styles.tabBar}>
         <TabItem icon="home" label="Home" isActive onPress={() => {}} />
         <TabItem icon="map" label="Map" onPress={() => router.push("/map")} />
-        <TabItem icon="pricetags" label="Listing" onPress={() => {}} />
+        <TabItem
+          icon="pricetags"
+          label="Listing"
+          onPress={() => router.push("/listings")}
+        />
       </View>
     </SafeAreaView>
   );

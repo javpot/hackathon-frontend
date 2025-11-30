@@ -4,29 +4,37 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   StatusBar,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   Keyboard,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
   const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
   const router = useRouter();
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" />
-
         <View style={styles.content}>
-          <Text style={styles.title}>Entrez votre nom</Text>
+          <Text style={styles.title}>Entrez vos donnees</Text>
 
           <TextInput
             style={styles.input}
-            placeholder="Votre nom"
+            placeholder="Numéro de teléphone"
+            placeholderTextColor="#777"
+            value={firstName}
+            onChangeText={setFirstName}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Nom"
             placeholderTextColor="#777"
             value={name}
             onChangeText={setName}
@@ -79,7 +87,7 @@ const styles = StyleSheet.create({
   confirmButton: {
     width: "100%",
     maxWidth: 320,
-    backgroundColor: "#A84420",
+    backgroundColor: "#4ade80",
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",

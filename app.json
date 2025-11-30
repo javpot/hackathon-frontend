@@ -14,7 +14,9 @@
       },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app uses your location to center the map and show where you are.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "The app accesses your photos to let you select images for listings.",
+        "NSPhotoLibraryAddUsageDescription": "The app needs access to save images for listings."
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.hackatonfrontend"

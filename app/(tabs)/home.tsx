@@ -468,7 +468,7 @@ const Home: React.FC = () => {
                 >
                   <View style={styles.statsRow}>
                     <FontAwesome5 name="users" size={16} color="#4ade80" />
-                    <Text style={styles.statsTitle}>Actifs</Text>
+                    <Text style={styles.statsTitle}>Actifs users</Text>
                   </View>
                   <Text style={styles.bigStatNumber}>{activeUserCount}</Text>
                 </LinearGradient>

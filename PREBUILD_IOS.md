@@ -13,6 +13,23 @@ This guide explains how to prebuild the app and run it on an iOS device through 
 4. **Node.js** and npm installed
 5. **Apple Developer Account** (free account works for development)
 
+## Important: Two Separate Issues
+
+### Issue 1: Metro Connection Errors (Dev Tooling)
+The `localhost:19000/19001/8081` connection errors you see are from **Expo Dev Client** trying to reach the **Metro bundler** (which runs on your Mac, not the phone). These are **development-only** errors and don't affect your actual app server.
+
+**Fix:** The `app.json` now includes `packagerOpts: { hostType: "lan" }` which tells Expo to use your Mac's LAN IP instead of localhost. When you run `npx expo start --dev-client`, make sure to:
+- Use **LAN** or **Tunnel** mode (press `s` in Expo CLI to switch)
+- Ensure iPhone and Mac are on the same Wi-Fi network
+
+### Issue 2: Your Actual TCP Server (App Feature)
+Your app's TCP server (using `react-native-tcp-socket` on port 3001) is **completely separate** from Metro. It:
+- ✅ Binds to `0.0.0.0` (correct for accepting connections)
+- ✅ Uses port 3001 (your custom port, not Metro's ports)
+- ✅ Should work fine on iOS after prebuild
+
+The Metro errors **do not indicate** your TCP server won't work. They're just dev tooling issues.
+
 ## Steps
 
 ### 1. Prebuild the iOS Project
@@ -128,6 +145,39 @@ eas build --platform ios --profile development
 
 Then install the `.ipa` file on your device.
 
+## Running the App After Prebuild
+
+### Development Mode (with Metro)
+
+1. **Start Metro bundler with dev client:**
+   ```bash
+   npx expo start --dev-client
+   ```
+
+2. **In the Expo CLI terminal:**
+   - Press `s` to open settings
+   - Select **LAN** or **Tunnel** (NOT localhost)
+   - This ensures your iPhone can reach Metro on your Mac
+
+3. **On your iPhone:**
+   - Open the Expo Dev Client app
+   - Scan the QR code or enter the URL manually
+   - The app will load from your Mac's Metro server
+
+### Production/Release Mode (No Metro)
+
+For a release build where your TCP server runs independently:
+
+1. **Build a release version:**
+   ```bash
+   eas build --platform ios --profile production
+   ```
+
+2. **Or build locally:**
+   - In Xcode, change scheme to "Release"
+   - Build and run (Cmd + R)
+   - Your TCP server will work without Metro
+
 ## After Prebuild
 
 Once prebuilt, you can:
@@ -137,4 +187,17 @@ Once prebuilt, you can:
 - Use Xcode's debugging tools
 
 The `ios/` folder will be generated and can be committed to git if you want to track native changes.
+
+## Your TCP Server on iOS
+
+Your app's TCP server (`react-native-tcp-socket` on port 3001) should work on iOS because:
+- ✅ It binds to `0.0.0.0` (listens on all interfaces)
+- ✅ Uses port 3001 (not Metro's ports)
+- ✅ `react-native-tcp-socket` supports iOS
+
+**Note:** iOS hotspot mode may have limitations for inbound connections. Test on:
+1. Regular Wi-Fi first (both devices on same network)
+2. Then test hotspot mode
+
+If hotspot doesn't work, consider using MultipeerConnectivity framework (iOS-native P2P solution).
 

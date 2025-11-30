@@ -24,7 +24,7 @@ export default function RootLayout() {
         />
 
         {/* ADD THIS to hide the header on your Hotspot screen */}
-        <Stack.Screen name="emetteur2" options={{ headerShown: false }} />
+        <Stack.Screen name="pulsepage" options={{ headerShown: false }} />
       </Stack>
     </AlertProvider>
   );

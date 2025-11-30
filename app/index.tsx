@@ -39,6 +39,13 @@ export default function Index() {
           >
             <Text style={styles.confirmButtonText}>Confirmer</Text>
           </TouchableOpacity>
+           <TouchableOpacity
+            style={styles.confirmButton}
+            activeOpacity={0.8}
+            onPress={() => router.push("/pulsepage")}
+          >
+            <Text style={styles.confirmButtonText}>Confirmer</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </TouchableWithoutFeedback>

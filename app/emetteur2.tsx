@@ -1,13 +1,13 @@
 import React from "react";
 import {
-  StyleSheet,
-  View,
-  Text,
   SafeAreaView,
-  TouchableOpacity,
   StatusBar,
-  ViewStyle,
+  StyleSheet,
+  Text,
   TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from "react-native";
 // Utilisation de MaterialCommunityIcons pour l'icône de hotspot et de retour
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -69,6 +69,15 @@ export default function Emetteur2() {
             onPress={() => router.push("/product")}
           >
             <Text style={styles.actionButtonText}>J'ai activé mon hotspot</Text>
+          </TouchableOpacity>
+
+          {/* A small testing button to open the map screen */}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryAction]}
+            activeOpacity={0.8}
+            onPress={() => router.push("/map")}
+          >
+            <Text style={[styles.actionButtonText, styles.secondaryActionText]}>Voir la carte</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -166,5 +175,14 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "700",
+  } as TextStyle,
+  secondaryAction: {
+    marginTop: 10,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: THEME_COLOR,
+  } as ViewStyle,
+  secondaryActionText: {
+    color: THEME_COLOR,
   } as TextStyle,
 });

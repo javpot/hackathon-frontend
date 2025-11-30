@@ -7,6 +7,8 @@ export type Listing = {
     vendorName: string;
     vendorID: string;
     productsInReturn: string;
+    description?: string;
+    image?: string; // Base64 encoded image
 };
 
 export type Resource = {
@@ -32,7 +34,9 @@ export async function initDB() {
             ressource INTEGER,
             vendorName TEXT,
             vendorID TEXT,
-            productsInReturn TEXT
+            productsInReturn TEXT,
+            description TEXT,
+            image TEXT
         );
         CREATE TABLE IF NOT EXISTS Ressources (
             id INTEGER PRIMARY KEY NOT NULL,
@@ -42,14 +46,37 @@ export async function initDB() {
             quantity INTEGER
         );
     `);
+    
+    // Migrate existing listings table to add new columns if they don't exist
+    try {
+        await db.execAsync(`
+            ALTER TABLE listings ADD COLUMN image TEXT;
+        `);
+    } catch (error: any) {
+        // Column already exists, ignore error
+        if (!error.message?.includes('duplicate column')) {
+            console.error('Migration error:', error);
+        }
+    }
+    
+    try {
+        await db.execAsync(`
+            ALTER TABLE listings ADD COLUMN description TEXT;
+        `);
+    } catch (error: any) {
+        // Column already exists, ignore error
+        if (!error.message?.includes('duplicate column')) {
+            console.error('Migration error:', error);
+        }
+    }
 }
 
 // --- LISTINGS ---
 
 export async function addListing(listing: Listing) {
     const result = await db.runAsync(
-        'INSERT INTO listings (ressource, vendorName, vendorID, productsInReturn) VALUES (?, ?, ?, ?)',
-        [listing.ressource, listing.vendorName, listing.vendorID, listing.productsInReturn]
+        'INSERT INTO listings (ressource, vendorName, vendorID, productsInReturn, description, image) VALUES (?, ?, ?, ?, ?, ?)',
+        [listing.ressource, listing.vendorName, listing.vendorID, listing.productsInReturn, listing.description ?? null, listing.image ?? null]
     );
     return result.lastInsertRowId;
 }
@@ -72,7 +99,9 @@ export async function getAllListingsWithRessources(): Promise<Array<{ listing: L
             ressource: r.ressource, 
             vendorName: r.vendorName, 
             vendorID: r.vendorID, 
-            productsInReturn: r.productsInReturn 
+            productsInReturn: r.productsInReturn,
+            description: r.description,
+            image: r.image
         };
         const res: Resource | undefined = r.res_id ? { 
             id: r.res_id, 

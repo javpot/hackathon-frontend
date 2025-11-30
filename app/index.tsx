@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -36,7 +37,12 @@ export default function Index() {
           <TouchableOpacity
             style={styles.confirmButton}
             activeOpacity={0.8}
-            onPress={() => router.push("/home")}
+            onPress={async () => {
+              if (name.trim()) {
+                await AsyncStorage.setItem('userName', name.trim());
+              }
+              router.push("/home");
+            }}
           >
             <Text style={styles.confirmButtonText}>Confirmer</Text>
           </TouchableOpacity>

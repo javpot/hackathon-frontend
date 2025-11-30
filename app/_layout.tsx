@@ -29,6 +29,13 @@ export default function RootLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="listings"
+        options={{
+          title: "Listings",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

@@ -71,8 +71,13 @@
       ],
       "expo-secure-store",
       "expo-sqlite",
-      "expo-sqlite",
-      "expo-location"
+      "expo-location",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you select images for listings."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

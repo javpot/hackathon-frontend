@@ -1,24 +1,24 @@
 import {
-  FontAwesome5,
-  Ionicons,
-  MaterialCommunityIcons,
+    FontAwesome5,
+    Ionicons,
+    MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Dimensions, // Ajouté pour le chargement
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions, // Ajouté pour le chargement
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // --- IMPORT DU SERVICE CHATBOT ---
@@ -261,7 +261,7 @@ const Home: React.FC = () => {
       <View style={styles.tabBar}>
         <TabItem icon="home" label="Home" isActive onPress={() => {}} />
         <TabItem icon="map" label="Map" onPress={() => router.push("/map")} />
-        <TabItem icon="pricetags" label="Listing" onPress={() => {}} />
+        <TabItem icon="pricetags" label="Listing" onPress={() => router.push("/listings")} />
       </View>
     </SafeAreaView>
   );

@@ -37,6 +37,8 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.hackatonfrontend"
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.hackatonfrontend"
     },
     "web": {
       "output": "static",
@@ -44,6 +46,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
       [
         "expo-splash-screen",
         {
@@ -74,6 +77,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "cf9396ea-d897-48ee-9469-d3f2d0b5cda9"
+      }
     }
   }
 }

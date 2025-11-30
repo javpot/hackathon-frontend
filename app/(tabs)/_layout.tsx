@@ -18,7 +18,7 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="home" options={{ headerShown: false }} />
       <Tabs.Screen name="map" options={{ headerShown: false }} />
-      <Tabs.Screen name="listings" options={{ headerShown: false }} />
+      <Tabs.Screen name="addRessource" options={{ headerShown: false }} />
     </Tabs>
   );
 }

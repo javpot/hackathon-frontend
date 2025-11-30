@@ -19,8 +19,18 @@ export async function startServer(): Promise<void> {
     try {
       server = TcpSocket.createServer((socket) => {
         socket.on('data', (data: string | Buffer) => {
-          console.log('Received:', data.toString());
-          socket.write('OK\r\n');
+          const request = data.toString();
+          console.log('Received:', request);
+          
+          // Check if it's a GET request for /hello
+          if (request.includes('GET /hello')) {
+            const response = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nhello';
+            socket.write(response);
+            console.log('Sent response: hello');
+          } else {
+            // Default response
+            socket.write('OK\r\n');
+          }
         });
 
         socket.on('error', (error: any) => {

@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { login } from "../services/api";
 import { serverIsRunning, startServer } from "../services/localServer";
+import { testServerConnection } from "../services/localclient";
 
 export default function Index() {
   const router = useRouter();
@@ -24,6 +25,9 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [serverStatus, setServerStatus] = useState<"idle" | "starting" | "running" | "error">("idle");
   const [serverLogs, setServerLogs] = useState<string[]>([]);
+  const [clientStatus, setClientStatus] = useState<"idle" | "requesting" | "success" | "error">("idle");
+  const [clientResponse, setClientResponse] = useState<string>("");
+  const [serverIP, setServerIP] = useState<string>("10.0.2.2"); // Default for Android emulator (host's localhost)
 
   const openHotspotSettings = async () => {
     if (Platform.OS === "ios") {
@@ -100,19 +104,43 @@ export default function Index() {
 
     try {
       await startServer();
-      setServerStatus("running");
       addLog("✅ Server started successfully!");
-      addLog(`Server listening on 0.0.0.0:3000`);
+      addLog("Server listening on 0.0.0.0:3000");
+      setServerStatus("running");
     } catch (error: any) {
-      setServerStatus("error");
-      addLog(`❌ Error: ${error.message || String(error)}`);
       console.error("Server start error:", error);
+      setServerStatus("error");
+      const errorMsg = error?.message || error?.toString() || "Unknown error";
+      addLog(`❌ Error: ${errorMsg}`);
     }
   }
 
   function addLog(message: string) {
     const timestamp = new Date().toLocaleTimeString();
     setServerLogs((prev) => [...prev, `[${timestamp}] ${message}`]);
+  }
+
+  async function onTestClient() {
+    if (!serverIP || serverIP.trim() === "") {
+      const errorMsg = "Veuillez entrer l'adresse IP du serveur.";
+      setClientStatus("error");
+      setClientResponse(`ERROR: ${errorMsg}`);
+      return;
+    }
+
+    setClientStatus("requesting");
+    setClientResponse("");
+
+    try {
+      const response = await testServerConnection(serverIP, 3000);
+      setClientStatus("success");
+      setClientResponse(response || "No response data");
+    } catch (error: any) {
+      console.error("Client test error:", error);
+      const errorMessage = error?.message || error?.toString() || "Unknown error occurred";
+      setClientStatus("error");
+      setClientResponse(`ERROR: ${errorMessage}`);
+    }
   }
 
   return (
@@ -165,7 +193,7 @@ export default function Index() {
             {/* Nouveau Bouton pour le Hotspot */}
             <TouchableOpacity
               style={[styles.button, styles.hotspotButton]} 
-              onPress={handleOpenHotspot}
+              onPress={openHotspotSettings}
               activeOpacity={0.85}
             >
               <Text style={styles.buttonText}>Ouvrir les réglages Hotspot</Text>
@@ -195,31 +223,86 @@ export default function Index() {
               </Text>
             </TouchableOpacity>
 
-            {serverStatus !== "idle" && (
-              <View style={styles.serverStatusContainer}>
-                <Text style={styles.serverStatusTitle}>Server Status:</Text>
-                <Text style={[
-                  styles.serverStatusText,
-                  serverStatus === "running" && styles.serverStatusSuccess,
-                  serverStatus === "error" && styles.serverStatusError
-                ]}>
-                  {serverStatus === "starting" ? "🔄 Starting..." :
-                   serverStatus === "running" ? "✅ Running on port 3000" :
-                   "❌ Error"}
-                </Text>
-                
-                {serverLogs.length > 0 && (
-                  <View style={styles.logsContainer}>
-                    <Text style={styles.logsTitle}>Logs:</Text>
-                    <View style={styles.logsContent}>
-                      {serverLogs.map((log, index) => (
-                        <Text key={index} style={styles.logText}>{log}</Text>
-                      ))}
-                    </View>
+            <View style={{ marginTop: 12 }}>
+              <Text style={styles.label}>Server IP Address (for cross-device):</Text>
+              <TextInput
+                value={serverIP}
+                onChangeText={setServerIP}
+                placeholder="10.0.2.2 (emulator) or server IP"
+                placeholderTextColor="#999"
+                keyboardType="default"
+                autoCapitalize="none"
+                style={styles.input}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, styles.clientButton]}
+              onPress={onTestClient}
+              activeOpacity={0.85}
+              disabled={clientStatus === "requesting" || !serverIP || serverIP.trim() === ""}
+            >
+              <Text style={styles.buttonText}>
+                {clientStatus === "requesting" ? "Sending Request..." : 
+                 clientStatus === "success" ? "✅ Request Sent" : 
+                 "Test Client Connection"}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.clientStatusContainer}>
+              <Text style={styles.serverStatusTitle}>Client Request Status:</Text>
+              <Text style={[
+                styles.serverStatusText,
+                clientStatus === "success" && styles.serverStatusSuccess,
+                clientStatus === "error" && styles.serverStatusError
+              ]}>
+                {clientStatus === "idle" ? "⚪ Idle - Click 'Test Client Connection' to test" :
+                 clientStatus === "requesting" ? "🔄 Sending request..." :
+                 clientStatus === "success" ? "✅ Request successful" :
+                 "❌ Request failed"}
+              </Text>
+              
+              {(clientResponse || clientStatus === "error" || clientStatus === "success") && (
+                <View style={styles.logsContainer}>
+                  <Text style={styles.logsTitle}>
+                    {clientStatus === "error" ? "Error Details:" : "Response:"}
+                  </Text>
+                  <View style={styles.logsContent}>
+                    <Text style={[
+                      styles.logText,
+                      clientStatus === "error" && styles.errorLogText
+                    ]}>
+                      {clientResponse || (clientStatus === "success" ? "No response data" : "No error details available")}
+                    </Text>
                   </View>
-                )}
-              </View>
-            )}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.serverStatusContainer}>
+              <Text style={styles.serverStatusTitle}>Server Status:</Text>
+              <Text style={[
+                styles.serverStatusText,
+                serverStatus === "running" && styles.serverStatusSuccess,
+                serverStatus === "error" && styles.serverStatusError
+              ]}>
+                {serverStatus === "idle" ? "⚪ Idle - Click 'Test Server' to start" :
+                 serverStatus === "starting" ? "🔄 Starting..." :
+                 serverStatus === "running" ? "✅ Running on port 3000" :
+                 "❌ Error"}
+              </Text>
+              
+              {serverLogs.length > 0 && (
+                <View style={styles.logsContainer}>
+                  <Text style={styles.logsTitle}>Logs:</Text>
+                  <View style={styles.logsContent}>
+                    {serverLogs.map((log, index) => (
+                      <Text key={index} style={styles.logText}>{log}</Text>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
           </View>
 
           <View style={styles.footer}>
@@ -286,11 +369,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
-  // Style spécifique pour le bouton Hotspot pour le différencier légèrement
-  hotspotButton: {
-    marginTop: 10, // Réduire la marge après le bouton de connexion
-    backgroundColor: "#f97316", // Couleur orange pour le différencier
-  },
   forgot: {
     color: "#9ca3af",
     marginTop: 18, // Augmenter la marge du lien
@@ -321,6 +399,16 @@ const styles = StyleSheet.create({
   serverButton: {
     marginTop: 12,
     backgroundColor: "#10b981",
+  },
+  clientButton: {
+    marginTop: 12,
+    backgroundColor: "#3b82f6",
+  },
+  clientStatusContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "#071025",
+    borderRadius: 8,
   },
   serverStatusContainer: {
     marginTop: 16,
@@ -365,5 +453,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
     marginBottom: 2,
+  },
+  errorLogText: {
+    color: "#ef4444",
+    fontWeight: "600",
   },
 });

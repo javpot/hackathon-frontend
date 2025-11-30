@@ -448,9 +448,9 @@ export default function ConnectionModeScreen() {
               Connect to the host's hotspot, then discover and connect to the host server.
             </Text>
 
-            <View style={styles.buttonRow}>
+            <View style={styles.buttonColumn}>
               <TouchableOpacity
-                style={[styles.scanButton, styles.flexButton]}
+                style={styles.scanButton}
                 onPress={handleDiscoverHost}
                 disabled={isDiscovering}
                 activeOpacity={0.7}
@@ -469,7 +469,7 @@ export default function ConnectionModeScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.scanButton, styles.flexButton]}
+                style={styles.scanButton}
                 onPress={scanWiFiNetworks}
                 disabled={isScanning}
                 activeOpacity={0.7}
@@ -804,6 +804,12 @@ const styles = StyleSheet.create({
     color: '#4ade80',
     fontSize: 12,
     fontWeight: '500',
+  },
+  buttonColumn: {
+    flexDirection: 'column',
+    gap: 12,
+    marginBottom: 16,
+    width: '100%',
   },
   buttonRow: {
     flexDirection: 'row',

@@ -150,10 +150,11 @@ const Home: React.FC = () => {
     let userCountInterval: ReturnType<typeof setInterval> | null = null;
 
     if (connectionMode === 'client' && hostIP && vendorID) {
-      // Client: Send keep-alive packets periodically
+      // Client: Send keep-alive packets periodically and update active user count
       const sendKeepAlivePacket = async () => {
         try {
           const count = await sendKeepAlive(vendorID, hostIP, 3001);
+          setActiveUserCount(count);
           console.log(`[Client] 💓 Keep-alive sent, active users: ${count}`);
         } catch (error) {
           console.error('[Client] Failed to send keep-alive:', error);
@@ -391,7 +392,7 @@ const Home: React.FC = () => {
                     <FontAwesome5 name="users" size={16} color="#4ade80" />
                     <Text style={styles.statsTitle}>Active</Text>
                   </View>
-                  <Text style={styles.bigStatNumber}>67</Text>
+                  <Text style={styles.bigStatNumber}>{activeUserCount}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </ScrollView>

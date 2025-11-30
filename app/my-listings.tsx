@@ -6,6 +6,8 @@ import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Dimensions,
+    FlatList,
     Image,
     Modal,
     Platform,
@@ -19,18 +21,14 @@ import {
     View
 } from 'react-native';
 import { addListing, deleteAllListings, deleteListingById, getAllListings, getAllRessources, initDB, Listing, Resource } from '../database/db';
-import { checkHostAlive, deleteListingFromHost, pollListingsFromHost, sendListingToHost } from '../services/localclient';
-import { addListingToStore, getAllServerListings } from '../services/localServer';
+import { checkHostAlive, deleteListingFromHost, sendListingToHost } from '../services/localclient';
+import { addListingToStore } from '../services/localServer';
 
-type ServerListing = Listing & { clientId?: string; serverId?: string };
-
-type TabType = 'myListings' | 'barter';
+const { width } = Dimensions.get('window');
 
 export default function ListingsScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabType>('myListings');
   const [myListings, setMyListings] = useState<Listing[]>([]);
-  const [barterListings, setBarterListings] = useState<ServerListing[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -45,6 +43,7 @@ export default function ListingsScreen() {
   const [productsInReturn, setProductsInReturn] = useState('');
   const [selectedResourceId, setSelectedResourceId] = useState<number | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const initialize = async () => {
@@ -73,11 +72,9 @@ export default function ListingsScreen() {
     }
   }, [vendorID]);
 
-  // Separate effect for when connection mode is set
+  // Sync listings to server when connection mode is set
   useEffect(() => {
     if (!connectionMode) {
-      // If no connection mode, clear barter listings (server not running)
-      setBarterListings([]);
       return;
     }
 
@@ -89,107 +86,61 @@ export default function ListingsScreen() {
           await syncListingsToServer();
         } else {
           console.log('[Host] ⚠️ Server is not running - cannot sync listings');
-          setBarterListings([]);
           return;
         }
       } else if (connectionMode === 'client' && hostIP) {
         // If client, sync existing listings to host
-        // If sync fails, host might be down - check health first
         try {
           const isAlive = await checkHostAlive(hostIP, 3001, 5000);
           if (!isAlive) {
-            console.log('[Client] ⚠️ Host is not alive during initialization - forcing navigation');
-            await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
-            router.replace('/connection-mode');
+            console.log('[Client] ⚠️ Host is not alive during initialization');
             return;
           }
           await syncClientListingsToHost();
         } catch (error) {
-          console.error('[Client] Error during initial health check:', error);
-          await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
-          router.replace('/connection-mode');
-          return;
+          console.error('[Client] Error during initial sync:', error);
         }
       }
-      
-      // Load barter listings after connection info is loaded
-      // Small delay to ensure vendorID is set
-      setTimeout(() => {
-        loadBarterListings();
-      }, 500);
     };
     
     initialize();
-    
-    // Set up constant polling for barter listings - both host and client need to refresh
-    // Host polls to see new listings from clients, client polls to see all listings from host
-    let pollInterval: ReturnType<typeof setInterval> | null = null;
-    if (connectionMode === 'client' && hostIP) {
-      // Client polls host every 2 seconds
-      pollInterval = setInterval(() => {
-        loadBarterListings();
-      }, 2000);
-    } else if (connectionMode === 'host') {
-      // Host also polls its own store every 3 seconds to see new client listings
-      pollInterval = setInterval(() => {
-        loadBarterListings();
-      }, 3000); // 3 seconds for host - slightly less frequent since it's local
-      // Also load immediately
-      loadBarterListings();
-    }
 
-    // Set up health check for client mode - check every 7 seconds (between 5-10)
+    // Set up health check for client mode
     let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
     if (connectionMode === 'client' && hostIP) {
-      console.log('[Client] 🏥 Starting health check - will check host every 7 seconds');
       healthCheckInterval = setInterval(async () => {
         try {
           const isAlive = await checkHostAlive(hostIP, 3001, 5000);
           if (!isAlive) {
-            console.log('[Client] ⚠️ Host is not responding - navigating back to connection mode');
-            // Clear connection info
+            console.log('[Client] ⚠️ Host is not responding');
             await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
-            // Clear barter listings
-            setBarterListings([]);
-            // Navigate back to connection mode
             router.replace('/connection-mode');
           }
         } catch (error) {
           console.error('[Client] Error during health check:', error);
-          // If health check fails, cleanup listings and assume host is down
           if (vendorID && hostIP) {
             try {
               await deleteListingFromHost(vendorID, hostIP, 3001);
-              console.log('[Client] ✅ Cleaned up listings before disconnect');
             } catch (cleanupError) {
               console.error('[Client] Error cleaning up listings:', cleanupError);
             }
           }
           await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
-          setBarterListings([]);
           router.replace('/connection-mode');
         }
-      }, 7000); // 7 seconds - between 5-10 seconds
+      }, 7000);
     }
 
     return () => {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-      }
       if (healthCheckInterval) {
         clearInterval(healthCheckInterval);
       }
       // If client disconnects, remove all their listings from host
       if (connectionMode === 'client' && hostIP && vendorID) {
-        console.log('[Client] 🧹 Cleaning up: Removing all listings from host before disconnect');
-        // Delete all listings for this client's vendorID
         deleteListingFromHost(vendorID, hostIP, 3000).catch(error => {
           console.error('[Client] Error cleaning up listings on disconnect:', error);
-          // Continue anyway - cleanup is best effort
         });
       }
-      // Clear barter listings when connection mode changes or component unmounts
-      setBarterListings([]);
     };
   }, [connectionMode, hostIP, vendorID]);
 
@@ -411,7 +362,8 @@ export default function ListingsScreen() {
     }
   };
 
-  const loadBarterListings = async () => {
+  // Removed loadBarterListings - barter tab removed
+  const _removed_loadBarterListings = async () => {
     try {
       if (connectionMode === 'host') {
         // Check if server is running - if not, clear barter listings
@@ -631,10 +583,6 @@ export default function ListingsScreen() {
               }
               
               await loadData(); // Reload my listings
-              // Refresh barter listings immediately to reflect deletion
-              setTimeout(() => {
-                loadBarterListings();
-              }, 300);
               Alert.alert('Success', 'Listing deleted successfully');
             } catch (error) {
               console.error('Error deleting listing:', error);
@@ -761,10 +709,6 @@ export default function ListingsScreen() {
         try {
           const result = await sendListingToHost(newListing, hostIP, 3001);
           console.log('[Client] ✅ Listing synced to host successfully! Response:', result);
-          // Immediately refresh barter to see if it appears
-          setTimeout(() => {
-            loadBarterListings();
-          }, 500);
         } catch (error: any) {
           console.error('[Client] ❌ FAILED to sync listing to host!');
           console.error('[Client] Error type:', error.constructor.name);
@@ -778,11 +722,6 @@ export default function ListingsScreen() {
         try {
           const serverId = addListingToStore(newListing);
           console.log(`[Host] Listing added directly to server store with serverId: ${serverId}`);
-          console.log(`[Host] Server store now has ${getAllServerListings().length} listings`);
-          // Immediately refresh barter list to show the update
-          setTimeout(() => {
-            loadBarterListings();
-          }, 300);
         } catch (error) {
           console.error('[Host] Failed to add listing to server store:', error);
         }
@@ -799,11 +738,6 @@ export default function ListingsScreen() {
       // Reload my listings
       await loadData();
       
-      // Refresh barter listings after a short delay to ensure server has processed
-      setTimeout(() => {
-        loadBarterListings();
-      }, 500);
-      
       // Close form
       setShowForm(false);
       
@@ -816,115 +750,144 @@ export default function ListingsScreen() {
     }
   };
 
+  const filteredListings = myListings.filter(listing => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      listing.vendorName?.toLowerCase().includes(query) ||
+      listing.description?.toLowerCase().includes(query) ||
+      listing.productsInReturn?.toLowerCase().includes(query)
+    );
+  });
+
+  const renderItem = ({ item }: { item: Listing }) => (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      style={styles.itemContainer}
+    >
+      {/* Image à gauche */}
+      <View style={styles.imageWrapper}>
+        {item.image ? (
+          <Image
+            source={{ uri: item.image }}
+            style={styles.itemImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Ionicons name="image-outline" size={32} color="#666" />
+          </View>
+        )}
+      </View>
+
+      {/* Détails à droite */}
+      <View style={styles.detailsContainer}>
+        {/* Titre et Info Troc */}
+        <View style={styles.infoTop}>
+          <Text style={styles.itemTitle} numberOfLines={2}>
+            {item.vendorName || 'Unknown Vendor'}
+          </Text>
+
+          {item.description && (
+            <Text style={styles.itemDescription} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+
+          <View style={styles.tradeContainer}>
+            <Text style={styles.tradeLabel}>Looking for:</Text>
+            <Text style={styles.tradeItems} numberOfLines={2}>
+              {item.productsInReturn || 'Not specified'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Boutons d'Action (En bas à droite) */}
+        <View style={styles.actionRow}>
+          {/* Delete Button */}
+          {item.id && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteActionButton]}
+              onPress={() => handleDeleteListing(item.id!)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+            </TouchableOpacity>
+          )}
+          
+          {/* Bouton Message */}
+          <TouchableOpacity style={styles.actionButton}>
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={20}
+              color="#4ade80"
+            />
+          </TouchableOpacity>
+
+          {/* Bouton Appel */}
+          <TouchableOpacity style={[styles.actionButton, styles.callButton]}>
+            <Ionicons name="call-outline" size={20} color="#000" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#050505" />
       
-      {/* Header */}
+      {/* --- HEADER --- */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Listings</Text>
+        <Text style={styles.headerTitle}>My Listings</Text>
         <TouchableOpacity onPress={clearAllData} style={styles.clearButton}>
           <Ionicons name="trash-outline" size={20} color="#ef4444" />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        {/* Tabs */}
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'myListings' && styles.tabActive]}
-            onPress={() => setActiveTab('myListings')}
-            activeOpacity={0.7}
-          >
-            <Ionicons 
-              name="list" 
-              size={20} 
-              color={activeTab === 'myListings' ? '#4ade80' : '#999'} 
-            />
-            <Text style={[styles.tabText, activeTab === 'myListings' && styles.tabTextActive]}>
-              My Listings
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'barter' && styles.tabActive]}
-            onPress={() => setActiveTab('barter')}
-            activeOpacity={0.7}
-          >
-            <Ionicons 
-              name="swap-horizontal" 
-              size={20} 
-              color={activeTab === 'barter' ? '#4ade80' : '#999'} 
-            />
-            <Text style={[styles.tabText, activeTab === 'barter' && styles.tabTextActive]}>
-              Barter
-            </Text>
-          </TouchableOpacity>
+      {/* --- SEARCH BAR --- */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color="#6b7280" />
+          <TextInput
+            placeholder="Search your listings..."
+            placeholderTextColor="#6b7280"
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
         </View>
+      </View>
 
-        {/* Listings Feed - Full Screen */}
-        <View style={styles.feedContainer}>
-          <Text style={styles.sectionTitle}>
-            {activeTab === 'myListings' ? 'My Listings' : 'Barter - Available Listings'}
+      {/* --- LISTE --- */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4ade80" />
+        </View>
+      ) : filteredListings.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="pricetags-outline" size={48} color="#666" />
+          <Text style={styles.emptyText}>
+            {searchQuery.trim()
+              ? 'No listings match your search'
+              : 'No listings yet'}
           </Text>
-          {loading && activeTab === 'myListings' ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4ade80" />
-            </View>
-          ) : (activeTab === 'myListings' ? myListings : barterListings).length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="pricetags-outline" size={48} color="#666" />
-              <Text style={styles.emptyText}>
-                {activeTab === 'myListings' 
-                  ? 'No listings yet' 
-                  : 'No listings available from other users'}
-              </Text>
-              {activeTab === 'myListings' && (
-                <Text style={styles.emptySubtext}>Tap the button below to create one</Text>
-              )}
-            </View>
-          ) : (
-            <ScrollView style={styles.feedScroll} showsVerticalScrollIndicator={true}>
-              {(activeTab === 'myListings' ? myListings : barterListings).map((listing, index) => {
-                const serverListing = listing as ServerListing;
-                // Use serverId for barter listings, id for my listings, or create unique key
-                const listingKey = activeTab === 'barter' 
-                  ? serverListing.serverId || `barter-${serverListing.vendorID}-${index}`
-                  : listing.id || `my-${index}`;
-                return (
-                  <View key={listingKey} style={styles.listingCard}>
-                    {listing.image && (
-                      <Image source={{ uri: listing.image }} style={styles.listingImage} />
-                    )}
-                    <View style={styles.listingContent}>
-                      <View style={styles.listingHeader}>
-                        <View style={styles.listingHeaderLeft}>
-                          <Text style={styles.listingVendor}>{listing.vendorName}</Text>
-                          <Text style={styles.listingID}>ID: {listing.vendorID}</Text>
-                        </View>
-                        {activeTab === 'myListings' && listing.id && (
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteListing(listing.id!)}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                      {listing.description && (
-                        <Text style={styles.listingDescription}>{listing.description}</Text>
-                      )}
-                      <Text style={styles.listingReturn}>Wants: {listing.productsInReturn}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </ScrollView>
+          {!searchQuery.trim() && (
+            <Text style={styles.emptySubtext}>Tap the button below to create one</Text>
           )}
         </View>
+      ) : (
+        <FlatList
+          data={filteredListings}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id?.toString() || `listing-${item.vendorID}`}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
         {/* Add Button - Floating at Bottom */}
         <TouchableOpacity 
@@ -1053,7 +1016,6 @@ export default function ListingsScreen() {
             </View>
           </View>
         </Modal>
-      </View>
     </SafeAreaView>
   );
 }
@@ -1061,28 +1023,29 @@ export default function ListingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f1724',
+    backgroundColor: '#050505',
+    paddingBottom: 90,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 20,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: '#171717',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
   clearButton: {
     width: 40,
@@ -1092,47 +1055,136 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  content: {
-    flex: 1,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#1C1C1E',
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
+  searchContainer: {
     paddingHorizontal: 20,
+    marginBottom: 10,
   },
-  tab: {
-    flex: 1,
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#171717',
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    color: 'white',
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    alignItems: 'center',
   },
-  tabActive: {
-    borderBottomColor: '#4ade80',
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
   },
-  tabText: {
-    color: '#999',
+  emptyText: {
+    color: '#666',
     fontSize: 16,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    color: '#999',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  // -- ITEM CARD STYLE (matching listings tab) --
+  itemContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    backgroundColor: '#171717',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#262626',
+    height: 130,
+  },
+  imageWrapper: {
+    width: 110,
+    height: '100%',
+    backgroundColor: '#202020',
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0a0a0a',
+  },
+  detailsContainer: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  infoTop: {
+    // Conteneur pour le texte du haut
+  },
+  itemTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  itemDescription: {
+    color: '#9ca3af',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  tradeContainer: {
+    marginTop: 2,
+  },
+  tradeLabel: {
+    color: '#9ca3af',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  tradeItems: {
+    color: '#4ade80',
+    fontSize: 13,
     fontWeight: '500',
   },
-  tabTextActive: {
-    color: '#4ade80',
-    fontWeight: '600',
+  // -- BOUTONS D'ACTION --
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 10,
   },
-  feedContainer: {
-    flex: 1,
-    padding: 20,
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#262626',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
   },
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
+  deleteActionButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  callButton: {
+    backgroundColor: '#4ade80',
+    borderColor: '#4ade80',
   },
   label: {
     color: '#fff',
@@ -1258,67 +1310,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 16,
     fontSize: 16,
-  },
-  listingCard: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: 12,
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  listingImage: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
-  listingContent: {
-    padding: 16,
-  },
-  listingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  listingHeaderLeft: {
-    flex: 1,
-  },
-  listingVendor: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  listingID: {
-    color: '#999',
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  deleteButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    marginLeft: 8,
-  },
-  listingResource: {
-    color: '#4ade80',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  listingDescription: {
-    color: '#aaa',
-    fontSize: 14,
-    marginTop: 8,
-    marginBottom: 4,
-    fontStyle: 'italic',
-  },
-  listingReturn: {
-    color: '#ccc',
-    fontSize: 14,
-  },
-  emptySubtext: {
-    color: '#999',
-    marginTop: 8,
-    fontSize: 14,
   },
   addButton: {
     position: 'absolute',

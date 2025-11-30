@@ -1,37 +1,93 @@
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Button, Text, TextInput, View } from 'react-native';
-import { sendChatMessage } from '../services/chatService'; // Le fichier créé à l'étape 2
+import {
+  Keyboard,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
 
-export default function ChatScreen() {
-  const [input, setInput] = useState('');
-  const [response, setResponse] = useState('');
-
-  const handleSend = async () => {
-    if (!input.trim()) return;
-
-    try {
-      // Appel propre au backend via ton service
-      const botReply = await sendChatMessage(input);
-      
-      // botReply contient { text: "...", sender: "bot", ... }
-      setResponse(botReply.text); 
-      setInput('');
-    } catch (e) {
-      setResponse("Erreur de connexion...");
-    }
-  };
+export default function Index() {
+  const [name, setName] = useState("");
+  const router = useRouter();
 
   return (
-    <View style={{ padding: 50 }}>
-      <TextInput 
-        value={input} 
-        onChangeText={setInput} 
-        placeholder="Écris un message..." 
-        style={{ borderBottomWidth: 1, marginBottom: 20, padding: 10 }}
-      />
-      <Button title="Envoyer" onPress={handleSend} />
-      
-      {response ? <Text style={{ marginTop: 20, fontSize: 18 }}>🤖 : {response}</Text> : null}
-    </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" />
+
+        <View style={styles.content}>
+          <Text style={styles.title}>Entrez votre nom</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Votre nom"
+            placeholderTextColor="#777"
+            value={name}
+            onChangeText={setName}
+          />
+
+          <TouchableOpacity
+            style={styles.confirmButton}
+            activeOpacity={0.8}
+            onPress={() => router.push("/home")}
+          >
+            <Text style={styles.confirmButtonText}>Confirmer</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#000000",
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  title: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 40,
+    textAlign: "center",
+  },
+  input: {
+    width: "100%",
+    maxWidth: 320,
+    backgroundColor: "#111",
+    borderWidth: 2,
+    borderColor: "#555",
+    paddingVertical: 14,
+    borderRadius: 30,
+    paddingHorizontal: 15,
+    color: "#fff",
+    fontSize: 18,
+    marginBottom: 25,
+  },
+  confirmButton: {
+    width: "100%",
+    maxWidth: 320,
+    backgroundColor: "#A84420",
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+});

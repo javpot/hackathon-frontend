@@ -51,7 +51,7 @@ const Home: React.FC = () => {
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [connectionMode, setConnectionMode] = useState<'client' | null>(null);
-  const [hostIP, setHostIP] = useState<string>('');
+  const [hostIP] = useState<string>(''); // Not used anymore - using hardcoded ngrok URL
   const [activeUserCount, setActiveUserCount] = useState<number>(0);
   const [vendorID, setVendorID] = useState<string>('');
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
@@ -112,10 +112,10 @@ const Home: React.FC = () => {
   useEffect(() => {
     // Database initialization removed - no longer needed for trade listings
 
-    // Load connection mode and host IP - default to client mode
+    // Load connection mode - default to client mode
+    // Note: hostIP is no longer used - we use hardcoded ngrok URL from constants
     const loadConnectionMode = async () => {
       let mode = await AsyncStorage.getItem('connectionMode');
-      const ip = await AsyncStorage.getItem('hostIP');
       let deviceId = await AsyncStorage.getItem('deviceVendorID');
       
       // Default to client mode if not set
@@ -125,11 +125,6 @@ const Home: React.FC = () => {
       }
       
       setConnectionMode(mode as 'client');
-      
-      // Default host IP if not set (can be configured later)
-      if (ip) {
-        setHostIP(ip);
-      }
       
       // Generate device ID if not exists
       if (!deviceId) {
@@ -211,14 +206,15 @@ const Home: React.FC = () => {
 
   // Keep-alive and active user count tracking (client mode only)
   useEffect(() => {
-    if (connectionMode !== 'client' || !hostIP || !vendorID) {
+    if (connectionMode !== 'client' || !vendorID) {
       return;
     }
 
     // Client: Send keep-alive packets periodically and update active user count
+    // Uses hardcoded ngrok URL from constants
     const sendKeepAlivePacket = async () => {
       try {
-        const count = await sendKeepAlive(vendorID, hostIP, 3001);
+        const count = await sendKeepAlive(vendorID);
         setActiveUserCount(count);
         console.log(`[Client] 💓 Keep-alive sent, active users: ${count}`);
       } catch (error) {
@@ -235,18 +231,18 @@ const Home: React.FC = () => {
     return () => {
       clearInterval(keepAliveInterval);
     };
-  }, [connectionMode, hostIP, vendorID]);
+  }, [connectionMode, vendorID]);
 
   // Health check for client mode (optional - just logs, doesn't navigate)
   useEffect(() => {
-    if (connectionMode !== 'client' || !hostIP) {
+    if (connectionMode !== 'client') {
       return;
     }
 
     console.log('[Home] 🏥 Starting health check for client mode');
     const healthCheckInterval = setInterval(async () => {
       try {
-        const isAlive = await checkHostAlive(hostIP, 3001);
+        const isAlive = await checkHostAlive();
         if (!isAlive) {
           console.log('[Home] ⚠️ Host is not responding');
           setActiveUserCount(0);
@@ -260,16 +256,16 @@ const Home: React.FC = () => {
     return () => {
       clearInterval(healthCheckInterval);
     };
-  }, [connectionMode, hostIP]);
+  }, [connectionMode]);
 
   const handleLogout = async () => {
     try {
       // If client, remove all listings from host before disconnecting
-      if (connectionMode === 'client' && hostIP && vendorID) {
+      if (connectionMode === 'client' && vendorID) {
         console.log('[Home] 🧹 Cleaning up: Removing all client listings from host');
         try {
           const { deleteListingFromHost } = await import('../../services/localclient');
-          await deleteListingFromHost(vendorID, hostIP, 3001);
+          await deleteListingFromHost(vendorID);
           console.log('[Home] ✅ Client listings removed from host');
         } catch (error) {
           console.error('[Home] Error removing listings from host:', error);

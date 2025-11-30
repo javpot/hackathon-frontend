@@ -2,6 +2,10 @@
 export const DEFAULT_SERVER_PORT = 3001; // Changed to 3001 for testing (port 3000 was blocked)
 export const DEFAULT_HOST = '0.0.0.0'; // Listen on all interfaces
 
+// TEMPORARY: Hardcoded ngrok URL for host server
+// This forwards to http://localhost:3001
+export const NGROK_HOST_URL = 'https://vexingly-tritest-laurel.ngrok-free.dev';
+
 // Host network IP for emulator-to-emulator communication (simulates hotspot)
 // This is the host machine's IP on the local network
 // Update this if your host's IP changes

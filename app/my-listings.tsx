@@ -95,11 +95,11 @@ export default function ListingsScreen() {
     }
 
     const initialize = async () => {
-      // Client mode only - sync existing listings to host
-      if (connectionMode === 'client' && hostIP) {
+      // Client mode only - sync existing listings to host (uses hardcoded ngrok URL)
+      if (connectionMode === 'client') {
         // If client, sync existing listings to host
         try {
-          const isAlive = await checkHostAlive(hostIP, 3001);
+          const isAlive = await checkHostAlive();
           if (isAlive) {
             await syncClientListingsToHost();
           } else {
@@ -118,13 +118,13 @@ export default function ListingsScreen() {
         clearInterval(healthCheckInterval);
       }
       // If client disconnects, remove all their listings from host
-      if (connectionMode === 'client' && hostIP && vendorID) {
-        deleteListingFromHost(vendorID, hostIP, 3000).catch(error => {
+      if (connectionMode === 'client' && vendorID) {
+        deleteListingFromHost(vendorID).catch(error => {
           console.error('[Client] Error cleaning up listings on disconnect:', error);
         });
       }
     };
-  }, [connectionMode, hostIP, vendorID]);
+  }, [connectionMode, vendorID]);
 
   const syncClientListingsToHost = async () => {
     try {
@@ -147,7 +147,7 @@ export default function ListingsScreen() {
         }
         
         try {
-          const result = await sendListingToHost(listingToSync, hostIP, 3001);
+          const result = await sendListingToHost(listingToSync);
           console.log(`[Client] ✅ Synced listing "${listingToSync.vendorName}" to host:`, result);
         } catch (error: any) {
           console.error(`[Client] ❌ Failed to sync listing "${listingToSync.vendorName}" to host:`, error.message || error);
@@ -411,18 +411,18 @@ export default function ListingsScreen() {
         }
         // Always update, even if empty (to reflect deletions)
         setBarterListings(filtered);
-      } else if (connectionMode === 'client' && hostIP) {
+      } else if (connectionMode === 'client') {
         // Client polls host for listings - this regenerates the barter list every time
-        // If connection fails, force navigation back to connection mode
+        // Uses hardcoded ngrok URL
         let serverListings;
         try {
-          serverListings = await pollListingsFromHost(hostIP, 3001);
+          serverListings = await pollListingsFromHost();
         } catch (error) {
           console.log('[Client] ⚠️ Failed to poll host - server is down, cleaning up and forcing navigation');
           // Remove client listings from host before disconnecting
-          if (vendorID && hostIP) {
+          if (vendorID) {
             try {
-              await deleteListingFromHost(vendorID, hostIP, 3001);
+              await deleteListingFromHost(vendorID);
               console.log('[Client] ✅ Cleaned up listings before disconnect');
             } catch (cleanupError) {
               console.error('[Client] Error cleaning up listings:', cleanupError);
@@ -516,7 +516,7 @@ export default function ListingsScreen() {
               if (listingToDelete && (connectionMode === 'client' && hostIP)) {
                 try {
                   // Try to delete by vendorID (server will find and delete matching listings)
-                  await deleteListingFromHost(listingToDelete.vendorID, hostIP, 3000);
+                  await deleteListingFromHost(listingToDelete.vendorID);
                   console.log('[Client] ✅ Listing deleted from host');
                 } catch (error) {
                   console.error('[Client] ❌ Failed to delete listing from host:', error);
@@ -525,7 +525,7 @@ export default function ListingsScreen() {
               } else if (listingToDelete && connectionMode === 'host') {
                 try {
                   // Host deletes from its own server store
-                  await deleteListingFromHost(listingToDelete.vendorID, '127.0.0.1', 3000);
+                  await deleteListingFromHost(listingToDelete.vendorID);
                   console.log('[Host] ✅ Listing deleted from host store');
                 } catch (error) {
                   console.error('[Host] ❌ Failed to delete listing from host store:', error);
@@ -670,10 +670,10 @@ export default function ListingsScreen() {
       await addListing(newListing);
       console.log(`[${connectionMode}] Created listing with vendorID: ${newListing.vendorID}, vendorName: ${newListing.vendorName}`);
       
-      // Sync with host if connected (both client and host should send to server)
-      console.log(`[${connectionMode}] Checking sync conditions - connectionMode: ${connectionMode}, hostIP: ${hostIP}`);
-      if (connectionMode === 'client' && hostIP) {
-        console.log(`[Client] 📤 Attempting to send listing to host at ${hostIP}:3001`);
+      // Sync with host if connected (uses hardcoded ngrok URL)
+      console.log(`[${connectionMode}] Checking sync conditions - connectionMode: ${connectionMode}`);
+      if (connectionMode === 'client') {
+        console.log(`[Client] 📤 Attempting to send listing to host via ngrok`);
         console.log(`[Client] Listing to send:`, {
           vendorID: newListing.vendorID,
           vendorName: newListing.vendorName,
@@ -681,7 +681,7 @@ export default function ListingsScreen() {
           productsInReturn: newListing.productsInReturn
         });
         try {
-          const result = await sendListingToHost(newListing, hostIP, 3001);
+          const result = await sendListingToHost(newListing);
           console.log('[Client] ✅ Listing synced to host successfully! Response:', result);
         } catch (error: any) {
           console.error('[Client] ❌ FAILED to sync listing to host!');

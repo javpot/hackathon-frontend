@@ -79,13 +79,13 @@ export default function Listings() {
     loadBarterListings();
 
     return () => clearInterval(pollInterval);
-  }, [connectionMode, hostIP, vendorID]);
+  }, [connectionMode, vendorID]);
 
   const loadBarterListings = async () => {
     try {
-      // Client mode only - fetch listings from host
-      if (connectionMode === 'client' && hostIP) {
-        const serverListings = await pollListingsFromHost(hostIP, 3001);
+      // Client mode only - fetch listings from host (uses hardcoded ngrok URL)
+      if (connectionMode === 'client') {
+        const serverListings = await pollListingsFromHost();
         console.log(`[Client] Received ${serverListings?.length || 0} listings from host`);
         
         // Filter out own listings

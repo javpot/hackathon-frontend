@@ -1,8 +1,8 @@
 import * as SQLite from 'expo-sqlite';
 
+// --- TYPES ---
 export type Listing = {
     id?: number;
-    // listing now references a resource
     ressource: number;
     vendorName: string;
     vendorID: string;
@@ -19,26 +19,14 @@ export type Resource = {
 
 const DATABASE_NAME = 'app.db';
 
-const db = SQLite.openDatabase(DATABASE_NAME);
 
-function runSql<T = any>(sql: string, params: (string | number | null)[] = []) {
-    return new Promise<T>((resolve, reject) => {
-        db.transaction((tx: any) => {
-            tx.executeSql(
-                sql,
-                params as any,
-                (_: any, result: any) => resolve(result as unknown as T),
-                (_: any, err: any) => {
-                    reject(err);
-                    return false;
-                }
-            );
-        });
-    });
-}
+const db = SQLite.openDatabaseSync(DATABASE_NAME);
 
+// --- INITIALISATION ---
 export async function initDB() {
-    const createListingsSql = `
+    // execAsync permet d'exécuter plusieurs commandes SQL d'un coup
+    await db.execAsync(`
+        PRAGMA journal_mode = WAL;
         CREATE TABLE IF NOT EXISTS listings (
             id INTEGER PRIMARY KEY NOT NULL,
             ressource INTEGER,
@@ -46,9 +34,6 @@ export async function initDB() {
             vendorID TEXT,
             productsInReturn TEXT
         );
-    `;
-
-    const createResourcesSql = `
         CREATE TABLE IF NOT EXISTS Ressources (
             id INTEGER PRIMARY KEY NOT NULL,
             name TEXT,
@@ -56,113 +41,106 @@ export async function initDB() {
             image TEXT,
             quantity INTEGER
         );
-    `;
-
-    await runSql(createListingsSql);
-    await runSql(createResourcesSql);
+    `);
 }
 
+// --- LISTINGS ---
+
 export async function addListing(listing: Listing) {
-    const sql = `INSERT INTO listings (ressource, vendorName, vendorID, productsInReturn) VALUES (?, ?, ?, ?);`;
-    const params = [listing.ressource, listing.vendorName, listing.vendorID, listing.productsInReturn];
-    const result = await runSql(sql, params);
-    // @ts-ignore - Result type for `executeSql` returns insertId in rowsAffected result
-    return (result as any).insertId ?? null;
+    const result = await db.runAsync(
+        'INSERT INTO listings (ressource, vendorName, vendorID, productsInReturn) VALUES (?, ?, ?, ?)',
+        [listing.ressource, listing.vendorName, listing.vendorID, listing.productsInReturn]
+    );
+    return result.lastInsertRowId;
 }
 
 export async function getAllListings(): Promise<Listing[]> {
-    const sql = `SELECT * FROM listings;`;
-    const result: any = await runSql(sql);
-    const rows = result.rows && result.rows._array ? result.rows._array : [];
-    return rows as Listing[];
+    const rows = await db.getAllAsync('SELECT * FROM listings') as Listing[];
+    return rows;
 }
 
 export async function getAllListingsWithRessources(): Promise<Array<{ listing: Listing; ressource?: Resource }>> {
-    const sql = `SELECT l.*, r.id AS res_id, r.name AS res_name, r.description AS res_description, r.image AS res_image, r.quantity AS res_quantity FROM listings l LEFT JOIN Ressources r ON l.ressource = r.id;`;
-    const result: any = await runSql(sql);
-    const rows = result.rows && result.rows._array ? result.rows._array : [];
-    const mapped = rows.map((r: any) => {
-        const listing: Listing = { id: r.id, ressource: r.ressource, vendorName: r.vendorName, vendorID: r.vendorID, productsInReturn: r.productsInReturn } as Listing;
-        const res = r.res_id ? { id: r.res_id, name: r.res_name, description: r.res_description, image: r.res_image, quantity: r.res_quantity } as Resource : undefined;
+    const rows = await db.getAllAsync(`
+        SELECT l.*, r.id AS res_id, r.name AS res_name, r.description AS res_description, r.image AS res_image, r.quantity AS res_quantity 
+        FROM listings l 
+        LEFT JOIN Ressources r ON l.ressource = r.id
+    `);
+
+    return rows.map((r: any): { listing: Listing; ressource?: Resource } => {
+        const listing: Listing = { 
+            id: r.id, 
+            ressource: r.ressource, 
+            vendorName: r.vendorName, 
+            vendorID: r.vendorID, 
+            productsInReturn: r.productsInReturn 
+        };
+        const res: Resource | undefined = r.res_id ? { 
+            id: r.res_id, 
+            name: r.res_name, 
+            description: r.res_description, 
+            image: r.res_image, 
+            quantity: r.res_quantity 
+        } : undefined;
+        
         return { listing, ressource: res };
     });
-    return mapped;
 }
 
 export async function getListingById(id: number): Promise<Listing | null> {
-    const sql = `SELECT * FROM listings WHERE id = ?;`;
-    const result: any = await runSql(sql, [id]);
-    const rows = result.rows && result.rows._array ? result.rows._array : [];
-    return rows[0] ?? null;
+    const row = await db.getFirstAsync('SELECT * FROM listings WHERE id = ?', [id]) as Listing | null;
+    return row ?? null;
 }
 
 export async function deleteListingById(id: number) {
-    const sql = `DELETE FROM listings WHERE id = ?;`;
-    await runSql(sql, [id]);
+    await db.runAsync('DELETE FROM listings WHERE id = ?', [id]);
 }
 
-// ---------------------
-// Ressources helpers
-// ---------------------
+// --- RESSOURCES ---
 
 export async function addResource(resource: Resource) {
-    const sql = `INSERT INTO Ressources (name, description, image, quantity) VALUES (?, ?, ?, ?);`;
-    const params = [resource.name, resource.description, resource.image ?? null, resource.quantity];
-    const result = await runSql(sql, params);
-    // @ts-ignore
-    return (result as any).insertId ?? null;
+    const result = await db.runAsync(
+        'INSERT INTO Ressources (name, description, image, quantity) VALUES (?, ?, ?, ?)',
+        [resource.name, resource.description, resource.image ?? null, resource.quantity]
+    );
+    return result.lastInsertRowId;
 }
 
 export async function getAllRessources(): Promise<Resource[]> {
-    const sql = `SELECT * FROM Ressources;`;
-    const result: any = await runSql(sql);
-    const rows = result.rows && result.rows._array ? result.rows._array : [];
-    return rows as Resource[];
+    const rows = await db.getAllAsync('SELECT * FROM Ressources') as Resource[];
+    return rows;
 }
 
 export async function getRessourceById(id: number): Promise<Resource | null> {
-    const sql = `SELECT * FROM Ressources WHERE id = ?;`;
-    const result: any = await runSql(sql, [id]);
-    const rows = result.rows && result.rows._array ? result.rows._array : [];
-    return rows[0] ?? null;
+    const row = await db.getFirstAsync('SELECT * FROM Ressources WHERE id = ?', [id]) as Resource | null;
+    return row ?? null;
 }
 
 export async function getRessourceByName(name: string): Promise<Resource | null> {
-    const sql = `SELECT * FROM Ressources WHERE name = ? LIMIT 1;`;
-    const result: any = await runSql(sql, [name]);
-    const rows = result.rows && result.rows._array ? result.rows._array : [];
-    return rows[0] ?? null;
+    const row = await db.getFirstAsync('SELECT * FROM Ressources WHERE name = ? LIMIT 1', [name]) as Resource | null;
+    return row ?? null;
 }
 
 export async function deleteRessourceById(id: number) {
-    const sql = `DELETE FROM Ressources WHERE id = ?;`;
-    await runSql(sql, [id]);
+    await db.runAsync('DELETE FROM Ressources WHERE id = ?', [id]);
 }
 
-// Fonction ajoutée pour le Chatbot (RAG)
+// --- SPÉCIAL CHATBOT (RAG) ---
+// C'est la fonction que le bot utilise pour lire ton inventaire
 export async function getInventoryForBot(): Promise<string> {
-    // On sélectionne uniquement name, quantity et description comme demandé
-    const sql = `SELECT name, quantity, description FROM Ressources;`;
-    
     try {
-        const result: any = await runSql(sql);
-        const rows = result.rows && result.rows._array ? result.rows._array : [];
+        const rows = await db.getAllAsync(
+            'SELECT name, quantity, description FROM Ressources'
+        ) as {name: string, quantity: number, description: string}[];
 
         if (rows.length === 0) {
             return "L'inventaire est vide. Le joueur n'a aucune ressource.";
         }
 
-        // On formate chaque ligne pour que l'IA comprenne bien
-        // Ex: "5x Bandages (Pour soigner les blessures), 1x Couteau (Arme tranchante)"
-        const formattedList = rows.map((r: any) => 
-            `${r.quantity}x ${r.name} (${r.description})`
-        ).join(', ');
-
-        return formattedList;
+        return rows.map((r: { name: string; quantity: number; description: string }) => `${r.quantity}x ${r.name} (${r.description})`).join(', ');
 
     } catch (error) {
-        console.error("Erreur lors de la récupération de l'inventaire pour le bot:", error);
-        return "Erreur d'accès à la base de données.";
+        console.error("Erreur inventaire bot:", error);
+        return "Erreur lecture DB.";
     }
 }
 
@@ -172,12 +150,11 @@ export default {
     getAllListings,
     getListingById,
     deleteListingById,
-    // Ressources
     addResource,
     getAllRessources,
     getRessourceById,
     getRessourceByName,
     deleteRessourceById,
     getAllListingsWithRessources,
-    getInventoryForBot
+    getInventoryForBot, 
 };

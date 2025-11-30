@@ -1,23 +1,29 @@
-import React from "react";
-import { useRouter } from "expo-router";
 import {
-  StyleSheet,
-  Text,
-  View,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  Dimensions,
-  Platform,
-  TextInput,
-} from "react-native";
-import {
+  FontAwesome5,
   Ionicons,
   MaterialCommunityIcons,
-  FontAwesome5,
 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions, // Ajouté pour le chargement
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+// --- IMPORT DU SERVICE CHATBOT ---
+import { initDB } from "../database/db";
+import { sendChatMessage } from "../services/chatService";
 
 const { width } = Dimensions.get("window");
 
@@ -29,8 +35,84 @@ interface ResourceCardProps {
   color: string;
 }
 
+// Type pour nos messages locaux
+interface Message {
+  id: string;
+  text: string;
+  sender: 'user' | 'bot';
+}
+
 const Home: React.FC = () => {
   const router = useRouter();
+  
+  // --- 1. ÉTATS (STATE) ---
+  const [inputText, setInputText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Messages initiaux (Hardcodés pour l'ambiance, mais stockés dans le state)
+  const [messages, setMessages] = useState<Message[]>([
+    { id: '1', text: "⚠️ Weather alert: Acid rain approaching Sector 4.", sender: 'bot' },
+    { id: '2', text: "Water source detected 2km North. Purify before consumption.", sender: 'bot' }
+  ]);
+
+  // Référence pour le scroll automatique vers le bas
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Scroll en bas quand un message arrive
+  useEffect(() => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, [messages]);
+
+  // --- 2. LOGIQUE D'ENVOI ---
+  const handleSend = async () => {
+    if (!inputText.trim()) return;
+
+    // A. On ajoute le message de l'utilisateur
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      text: inputText,
+      sender: 'user',
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setInputText(""); // On vide le champ
+    setIsLoading(true); // On affiche le chargement
+
+    try {
+      // B. On appelle le vrai service (Gemini + DB)
+      const response = await sendChatMessage(userMsg.text);
+
+      // C. On ajoute la réponse du bot
+      const botMsg: Message = {
+        id: response.id,
+        text: response.text,
+        sender: 'bot',
+      };
+      setMessages((prev) => [...prev, botMsg]);
+
+    } catch (error) {
+      // En cas d'erreur
+      const errorMsg: Message = { id: Date.now().toString(), text: "Erreur de connexion...", sender: 'bot' };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const setupDatabase = async () => {
+      try {
+        await initDB();
+        console.log("✅ Base de données initialisée et Tables créées !");
+      } catch (e) {
+        console.error("❌ Erreur création DB:", e);
+      }
+    };
+    setupDatabase();
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#050505" />
@@ -49,7 +131,11 @@ const Home: React.FC = () => {
       </View>
 
       {/* --- CONTENT (FIXED LAYOUT) --- */}
-      <View style={styles.mainContent}>
+      {/* On utilise KeyboardAvoidingView pour que le clavier ne cache pas le chat */}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"} 
+        style={styles.mainContent}
+      >
         {/* Titre */}
         <View style={styles.titleSection}>
           <Text style={styles.mainTitle}>Near you</Text>
@@ -63,7 +149,6 @@ const Home: React.FC = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalScrollContent}
           >
-            {/* Hôpital */}
             <ResourceCard
               title="St. Mary's"
               subtitle="Emergency"
@@ -71,8 +156,6 @@ const Home: React.FC = () => {
               iconName="hospital-box"
               color="#ef4444"
             />
-
-            {/* Banque Alimentaire */}
             <ResourceCard
               title="Sector 7 Food"
               subtitle="Rations"
@@ -80,8 +163,6 @@ const Home: React.FC = () => {
               iconName="food-drumstick"
               color="#f59e0b"
             />
-
-            {/* Stats Card */}
             <TouchableOpacity activeOpacity={0.8} style={styles.cardHorizontal}>
               <LinearGradient
                 colors={["#1f2937", "#111827"]}
@@ -103,8 +184,10 @@ const Home: React.FC = () => {
             {/* Header Chat */}
             <View style={styles.chatHeader}>
               <View style={styles.chatHeaderLeft}>
-                <View style={styles.pulseDot} />
-                <Text style={styles.chatTitle}>SURVIVAL AI LINK</Text>
+                <View style={[styles.pulseDot, isLoading && styles.pulseActive]} />
+                <Text style={styles.chatTitle}>
+                    {isLoading ? "ANALYZING DATA..." : "SURVIVAL AI LINK"}
+                </Text>
               </View>
               <MaterialCommunityIcons
                 name="robot-outline"
@@ -113,32 +196,43 @@ const Home: React.FC = () => {
               />
             </View>
 
-            {/* Messages */}
+            {/* Messages Dynamiques */}
             <ScrollView
+              ref={scrollViewRef}
               style={styles.chatBody}
               showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 10 }}
             >
-              <View style={styles.aiMessageRow}>
-                <View style={styles.aiAvatar}>
-                  <Text style={styles.aiAvatarText}>AI</Text>
-                </View>
-                <View style={styles.messageBubbleAi}>
-                  <Text style={styles.messageTextAi}>
-                    ⚠️ Weather alert: Acid rain approaching Sector 4.
-                  </Text>
-                </View>
-              </View>
+              {messages.map((msg) => (
+                <View 
+                    key={msg.id} 
+                    style={msg.sender === 'bot' ? styles.aiMessageRow : styles.userMessageRow}
+                >
+                  {/* Avatar seulement pour le bot */}
+                  {msg.sender === 'bot' && (
+                    <View style={styles.aiAvatar}>
+                      <Text style={styles.aiAvatarText}>AI</Text>
+                    </View>
+                  )}
 
-              <View style={styles.aiMessageRow}>
-                <View style={styles.aiAvatar}>
-                  <Text style={styles.aiAvatarText}>AI</Text>
+                  {/* Bulle de message */}
+                  <View style={msg.sender === 'bot' ? styles.messageBubbleAi : styles.messageBubbleUser}>
+                    <Text style={msg.sender === 'bot' ? styles.messageTextAi : styles.messageTextUser}>
+                      {msg.text}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.messageBubbleAi}>
-                  <Text style={styles.messageTextAi}>
-                    Water source detected 2km North. Purify before consumption.
-                  </Text>
-                </View>
-              </View>
+              ))}
+
+              {/* Indicateur de chargement dans le chat */}
+              {isLoading && (
+                  <View style={styles.aiMessageRow}>
+                      <View style={styles.aiAvatar}><Text style={styles.aiAvatarText}>...</Text></View>
+                      <View style={[styles.messageBubbleAi, { width: 50, alignItems: 'center'}]}>
+                          <ActivityIndicator size="small" color="#4ade80" />
+                      </View>
+                  </View>
+              )}
             </ScrollView>
 
             {/* Input Zone */}
@@ -147,14 +241,21 @@ const Home: React.FC = () => {
                 style={styles.inputField}
                 placeholder="Ask for guidance..."
                 placeholderTextColor="#525252"
+                value={inputText}
+                onChangeText={setInputText}
+                onSubmitEditing={handleSend} // Envoi avec la touche Entrée
               />
-              <TouchableOpacity style={styles.sendButton}>
+              <TouchableOpacity 
+                style={[styles.sendButton, { opacity: inputText ? 1 : 0.5 }]} 
+                onPress={handleSend}
+                disabled={!inputText}
+              >
                 <Ionicons name="arrow-up" size={18} color="black" />
               </TouchableOpacity>
             </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* --- BARRE DE NAVIGATION --- */}
       <View style={styles.tabBar}>
@@ -194,6 +295,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
     </View>
   </TouchableOpacity>
 );
+
 const TabItem = ({
   icon,
   label,
@@ -264,7 +366,6 @@ const styles = StyleSheet.create({
   // --- HORIZONTAL LIST ---
   horizontalListContainer: {
     height: 140,
-    // marginBottom: 10, // J'ai retiré le marginBottom ici pour tout gérer dans chatWrapper
   },
   horizontalScrollContent: {
     gap: 12,
@@ -338,10 +439,10 @@ const styles = StyleSheet.create({
     color: "#4ade80",
   },
 
-  // --- CHATBOT WRAPPER (MODIFIÉ) ---
+  // --- CHATBOT WRAPPER ---
   chatWrapper: {
     flex: 1,
-    marginTop: 30, // J'ai ajouté de l'espace ici (30px)
+    marginTop: 30,
     marginBottom: Platform.OS === "ios" ? 90 : 70,
   },
   chatContainer: {
@@ -372,6 +473,9 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#4ade80",
   },
+  pulseActive: {
+      backgroundColor: "#f59e0b", // Orange quand ça charge
+  },
   chatTitle: {
     color: "#4ade80",
     fontSize: 11,
@@ -381,11 +485,14 @@ const styles = StyleSheet.create({
   chatBody: {
     flex: 1,
   },
+  
+  // --- BOT MESSAGES ---
   aiMessageRow: {
     flexDirection: "row",
     gap: 10,
     alignItems: "flex-start",
     marginBottom: 12,
+    paddingRight: 40, // Pour ne pas coller à droite
   },
   aiAvatar: {
     width: 24,
@@ -403,7 +510,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   messageBubbleAi: {
-    flex: 1,
     backgroundColor: "#171717",
     padding: 10,
     borderRadius: 12,
@@ -414,6 +520,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+
+  // --- USER MESSAGES (NOUVEAU) ---
+  userMessageRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end", // Aligner à droite
+    marginBottom: 12,
+    paddingLeft: 40, // Pour ne pas coller à gauche
+  },
+  messageBubbleUser: {
+    backgroundColor: "#4ade80", // Vert Survvie
+    padding: 10,
+    borderRadius: 12,
+    borderTopRightRadius: 2,
+  },
+  messageTextUser: {
+    color: "#050505", // Texte foncé sur fond vert
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+
+  // --- INPUT ---
   inputArea: {
     flexDirection: "row",
     alignItems: "center",

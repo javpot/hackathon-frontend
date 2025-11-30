@@ -59,32 +59,39 @@ export async function discoverHostIP(
     ? ['192.168.43.1', '192.168.137.1', '10.0.0.1'] // Android hotspot common IPs
     : ['172.20.10.1', '192.168.2.1']; // iOS hotspot common IPs
   
+  // Try multiple ports in case server is using a different port (after hot reload)
+  const portsToTry = [port, port + 1, port + 2, port + 3, port + 4];
+  
   // For emulators, check 10.0.2.2 first (most common case)
   if (Platform.OS === 'android') {
-    try {
-      console.log(`[Hotspot] Checking emulator IP ${emulatorIP}:${port}...`);
-      const isAlive = await checkHostAlive(emulatorIP, port, timeout);
-      if (isAlive) {
-        console.log(`[Hotspot] ✅ Found host at ${emulatorIP}:${port} (emulator mode)`);
-        return emulatorIP;
+    for (const testPort of portsToTry) {
+      try {
+        console.log(`[Hotspot] Checking emulator IP ${emulatorIP}:${testPort}...`);
+        const isAlive = await checkHostAlive(emulatorIP, testPort, timeout);
+        if (isAlive) {
+          console.log(`[Hotspot] ✅ Found host at ${emulatorIP}:${testPort} (emulator mode)`);
+          return emulatorIP;
+        }
+      } catch (error) {
+        console.log(`[Hotspot] ❌ ${emulatorIP}:${testPort} not reachable`);
       }
-    } catch (error) {
-      console.log(`[Hotspot] ❌ ${emulatorIP} not reachable (emulator mode)`);
     }
   }
   
   // Check hotspot gateway IPs (for real devices)
   for (const ip of gatewayIPs) {
-    try {
-      console.log(`[Hotspot] Checking ${ip}:${port}...`);
-      const isAlive = await checkHostAlive(ip, port, timeout);
-      if (isAlive) {
-        console.log(`[Hotspot] ✅ Found host at ${ip}:${port}`);
-        return ip;
+    for (const testPort of portsToTry) {
+      try {
+        console.log(`[Hotspot] Checking ${ip}:${testPort}...`);
+        const isAlive = await checkHostAlive(ip, testPort, timeout);
+        if (isAlive) {
+          console.log(`[Hotspot] ✅ Found host at ${ip}:${testPort}`);
+          return ip;
+        }
+      } catch (error) {
+        // Continue checking other IPs/ports
+        console.log(`[Hotspot] ❌ ${ip}:${testPort} not reachable`);
       }
-    } catch (error) {
-      // Continue checking other IPs
-      console.log(`[Hotspot] ❌ ${ip} not reachable`);
     }
   }
   

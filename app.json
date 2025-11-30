@@ -15,12 +15,13 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app uses your location to center the map and show where you are."
       },
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.hackatonfrontend"
     },
     "android": {
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_ANDROID_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyB085TVEkI8AYzaZ0ikBdA-xkNbRdPuQSw"
         }
       },
       "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
@@ -31,7 +32,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.hackatonfrontend"
     },
     "web": {
       "output": "static",

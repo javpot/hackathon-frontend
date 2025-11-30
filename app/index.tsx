@@ -1,59 +1,60 @@
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
+import { useRouter } from "expo-router";
 import {
   SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 
 export default function Index() {
+  const [name, setName] = useState("");
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Configure la barre de statut pour qu'elle soit blanche sur fond noir */}
-      <StatusBar barStyle="light-content" />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" />
 
-      <View style={styles.content}>
-        {/* Titre */}
-        <Text style={styles.title}>Veuillez choisir un choix</Text>
+        <View style={styles.content}>
+          <Text style={styles.title}>Entrez votre nom</Text>
 
-        {/* Groupe Boutons */}
-        <View style={styles.buttonGroup}>
-          {/* Bouton Émetteur (Plein) */}
+          <TextInput
+            style={styles.input}
+            placeholder="Votre nom"
+            placeholderTextColor="#777"
+            value={name}
+            onChangeText={setName}
+          />
+
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={styles.confirmButton}
             activeOpacity={0.8}
-            onPress={() => router.push("/emetteur2")}
+            onPress={() => router.push("/home")}
           >
-            <Text style={styles.primaryButtonText}>Émetteur</Text>
-          </TouchableOpacity>
-
-          {/* Ligne de séparation */}
-          <View style={styles.separator} />
-
-          {/* Bouton Récepteur (Contour) */}
-          <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8}>
-            <Text style={styles.secondaryButtonText}>Récepteur</Text>
+            <Text style={styles.confirmButtonText}>Confirmer</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000", // Fond noir complet
+    backgroundColor: "#000000",
   },
   content: {
     flex: 1,
-    justifyContent: "center", // Centre verticalement
-    alignItems: "center", // Centre horizontalement
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 20,
   },
   title: {
@@ -63,42 +64,30 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     textAlign: "center",
   },
-  buttonGroup: {
+  input: {
     width: "100%",
-    maxWidth: 320, // Limite la largeur sur les grands écrans (tablettes)
-    alignItems: "center",
-  },
-  primaryButton: {
-    width: "100%",
-    backgroundColor: "#A84420", // Couleur orange brique
-    paddingVertical: 16,
-    borderRadius: 30, // Coins très arrondis
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  separator: {
-    width: "100%",
-    height: 1,
-    backgroundColor: "#555555", // Gris foncé pour la ligne
-    marginVertical: 25, // Espace en haut et en bas de la ligne
-  },
-  secondaryButton: {
-    width: "100%",
-    backgroundColor: "transparent",
+    maxWidth: 320,
+    backgroundColor: "#111",
     borderWidth: 2,
-    borderColor: "#555555", // Bordure grise
-    paddingVertical: 14, // Légèrement moins haut pour compenser la bordure
+    borderColor: "#555",
+    paddingVertical: 14,
+    borderRadius: 30,
+    paddingHorizontal: 15,
+    color: "#fff",
+    fontSize: 18,
+    marginBottom: 25,
+  },
+  confirmButton: {
+    width: "100%",
+    maxWidth: 320,
+    backgroundColor: "#A84420",
+    paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
   },
-  secondaryButtonText: {
-    color: "#A84420", // Texte orange brique
+  confirmButtonText: {
+    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "600",
   },

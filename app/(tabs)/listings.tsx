@@ -1,23 +1,29 @@
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator, Alert, Dimensions,
-    FlatList,
-    Image,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
-import { useAlerts } from '../../contexts/AlertContext';
-import { checkHostAlive, pollListingsFromHost } from '../../services/localclient';
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAlerts } from "../../contexts/AlertContext";
+// Make sure this path matches your project structure
+import {
+  checkHostAlive,
+  pollListingsFromHost,
+} from "../../services/localclient";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 type ServerListing = {
   id?: number;
@@ -37,29 +43,30 @@ export default function Listings() {
   const { addAlert } = useAlerts();
   const [barterListings, setBarterListings] = useState<ServerListing[]>([]);
   const [loading, setLoading] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<'client' | null>(null);
-  const [hostIP, setHostIP] = useState<string>('');
-  const [vendorID, setVendorID] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [connectionMode, setConnectionMode] = useState<"client" | null>(null);
+  const [hostIP, setHostIP] = useState<string>("");
+  const [vendorID, setVendorID] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const loadConnectionInfo = async () => {
-      const mode = await AsyncStorage.getItem('connectionMode');
-      const ip = await AsyncStorage.getItem('hostIP');
-      const deviceId = await AsyncStorage.getItem('deviceVendorID');
-      
-      if (mode === 'host' || mode === 'client' || mode === 'offline') {
-        setConnectionMode(mode);
+      const mode = await AsyncStorage.getItem("connectionMode");
+      const ip = await AsyncStorage.getItem("hostIP");
+      const deviceId = await AsyncStorage.getItem("deviceVendorID");
+
+      if (mode === "host" || mode === "client" || mode === "offline") {
+        setConnectionMode(mode as any);
       }
       if (ip) {
         setHostIP(ip);
       }
       if (deviceId) {
-        const fullVendorID = mode === 'host' && !deviceId.startsWith('host-') 
-          ? `host-${deviceId}` 
-          : mode === 'client' && !deviceId.startsWith('client-')
-          ? `client-${deviceId}`
-          : deviceId;
+        const fullVendorID =
+          mode === "host" && !deviceId.startsWith("host-")
+            ? `host-${deviceId}`
+            : mode === "client" && !deviceId.startsWith("client-")
+            ? `client-${deviceId}`
+            : deviceId;
         setVendorID(fullVendorID);
       }
     };
@@ -67,7 +74,7 @@ export default function Listings() {
   }, []);
 
   useEffect(() => {
-    if (!connectionMode || connectionMode === 'offline') {
+    if (!connectionMode || connectionMode === "offline") {
       setBarterListings([]);
       return;
     }
@@ -79,69 +86,64 @@ export default function Listings() {
     loadBarterListings();
 
     return () => clearInterval(pollInterval);
-  }, [connectionMode, vendorID]);
+  }, [connectionMode, vendorID, hostIP]);
 
+  // --- FIXED FUNCTION HERE ---
   const loadBarterListings = async () => {
     try {
-      // Client mode only - fetch listings from host (uses hardcoded ngrok URL)
-      if (connectionMode === 'client') {
+      // Client mode only - fetch listings from host
+      if (connectionMode === "client") {
+        // Optional: If you want to check if host is alive first using hostIP
+        if (hostIP) {
+          const isAlive = await checkHostAlive(hostIP, 3001, 2000);
+          if (!isAlive) {
+            console.log("[Client] Host not reachable");
+            return;
+          }
+        }
+
+        // Fetch listings
         const serverListings = await pollListingsFromHost();
-        console.log(`[Client] Received ${serverListings?.length || 0} listings from host`);
-        
+        // Note: verify if pollListingsFromHost needs arguments (hostIP, port) based on your service definition
+
+        console.log(
+          `[Client] Received ${serverListings?.length || 0} listings from host`
+        );
+
         // Filter out own listings
         const filtered = vendorID
-          ? (serverListings || []).filter((listing: any) => 
-              listing.vendorID !== vendorID && listing.clientId !== vendorID
+          ? (serverListings || []).filter(
+              (listing: any) =>
+                listing.vendorID !== vendorID && listing.clientId !== vendorID
             )
-          : (serverListings || []);
-        
+          : serverListings || [];
+
         setBarterListings(filtered);
       } else {
         setBarterListings([]);
       }
     } catch (error) {
-      console.error('[Client] Error loading barter listings:', error);
+      console.error("[Client] Error loading barter listings:", error);
       setBarterListings([]);
     }
   };
-        
-        setBarterListings(filtered);
-      } else if (connectionMode === 'client' && hostIP) {
-        try {
-          const isAlive = await checkHostAlive(hostIP, 3001, 2000);
-          if (!isAlive) {
-            setBarterListings([]);
-            return;
-          }
-          
-          const serverListings = await pollListingsFromHost(hostIP, 3001);
-          setBarterListings(serverListings);
-        } catch (error) {
-          console.error('[Client] Error polling listings:', error);
-          setBarterListings([]);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading barter listings:', error);
-    }
-  };
 
-  const filteredListings = barterListings.filter(listing => {
+  const filteredListings = barterListings.filter((listing) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
-      listing.vendorName?.toLowerCase().includes(query) ||
-      listing.description?.toLowerCase().includes(query) ||
-      listing.productsInReturn?.toLowerCase().includes(query)
+      (listing.vendorName &&
+        listing.vendorName.toLowerCase().includes(query)) ||
+      (listing.description &&
+        listing.description.toLowerCase().includes(query)) ||
+      (listing.productsInReturn &&
+        listing.productsInReturn.toLowerCase().includes(query))
     );
   });
 
   const renderItem = ({ item }: { item: ServerListing }) => (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      style={styles.itemContainer}
-    >
-      {/* Image à gauche */}
+    <TouchableOpacity activeOpacity={0.9} style={styles.itemContainer}>
+      {/* Image on Left */}
       <View style={styles.imageWrapper}>
         {item.image ? (
           <Image
@@ -156,12 +158,11 @@ export default function Listings() {
         )}
       </View>
 
-      {/* Détails à droite */}
+      {/* Details on Right */}
       <View style={styles.detailsContainer}>
-        {/* Titre et Info Troc */}
         <View style={styles.infoTop}>
           <Text style={styles.itemTitle} numberOfLines={2}>
-            {item.vendorName || 'Unknown Vendor'}
+            {item.vendorName || "Unknown Vendor"}
           </Text>
 
           {item.description && (
@@ -173,55 +174,46 @@ export default function Listings() {
           <View style={styles.tradeContainer}>
             <Text style={styles.tradeLabel}>Looking for:</Text>
             <Text style={styles.tradeItems} numberOfLines={2}>
-              {item.productsInReturn || 'Not specified'}
+              {item.productsInReturn || "Not specified"}
             </Text>
           </View>
         </View>
 
-        {/* Boutons d'Action (En bas à droite) */}
+        {/* Action Buttons */}
         <View style={styles.actionRow}>
-          {/* Bubble Button - Add waypoint and trade card */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, styles.bubbleButton]}
             onPress={async () => {
               try {
                 if (item.latitude && item.longitude) {
                   const lat = Number(item.latitude);
                   const lon = Number(item.longitude);
-                  
+
                   if (isNaN(lat) || isNaN(lon)) {
-                    console.error('[Listings] Invalid coordinates:', { lat, lon });
-                    Alert.alert('Error', 'Invalid location coordinates');
+                    Alert.alert("Error", "Invalid location coordinates");
                     return;
                   }
-                  
-                  console.log('[Listings] Adding trade waypoint:', {
-                    lat,
-                    lon,
-                    vendorName: item.vendorName
-                  });
-                  
+
                   // Add waypoint to map
                   addAlert({
-                    type: 'info',
+                    type: "info",
                     coords: {
                       latitude: lat,
                       longitude: lon,
                     },
-                    message: `${item.vendorName}${item.description ? ' - ' + item.description : ''}`,
+                    message: `${item.vendorName}${
+                      item.description ? " - " + item.description : ""
+                    }`,
                   });
-                  
-                  console.log('[Listings] ✅ Waypoint added successfully');
-                  // Navigate to map to show the waypoint
-                  router.push('/map');
-                  Alert.alert('Success', 'Trade location added to map');
+
+                  router.push("/map");
+                  Alert.alert("Success", "Trade location added to map");
                 } else {
-                  console.warn('[Listings] No location data for listing:', item);
-                  Alert.alert('Error', 'This listing has no location data');
+                  Alert.alert("Error", "This listing has no location data");
                 }
               } catch (error) {
-                console.error('[Listings] Error adding trade waypoint:', error);
-                Alert.alert('Error', 'Failed to add trade location to map');
+                console.error("[Listings] Error adding trade waypoint:", error);
+                Alert.alert("Error", "Failed to add trade location to map");
               }
             }}
             activeOpacity={0.7}
@@ -237,16 +229,14 @@ export default function Listings() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#050505" />
 
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Trade</Text>
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.myListingsButton}
             onPress={() => {
-              console.log('[Listings Tab] My Listings button pressed - navigating to my-listings');
-              // Navigate to the my-listings route (renamed to avoid conflict with tab route)
-              router.push('/my-listings');
+              router.push("/my-listings");
             }}
             activeOpacity={0.7}
           >
@@ -259,7 +249,7 @@ export default function Listings() {
         </View>
       </View>
 
-      {/* --- SEARCH BAR --- */}
+      {/* SEARCH BAR */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color="#6b7280" />
@@ -273,7 +263,7 @@ export default function Listings() {
         </View>
       </View>
 
-      {/* --- LISTE --- */}
+      {/* LIST */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4ade80" />
@@ -282,11 +272,11 @@ export default function Listings() {
         <View style={styles.emptyContainer}>
           <Ionicons name="pricetags-outline" size={48} color="#666" />
           <Text style={styles.emptyText}>
-            {connectionMode === 'offline' 
-              ? 'Offline mode - no listings available'
+            {connectionMode === "offline"
+              ? "Offline mode - no listings available"
               : searchQuery.trim()
-              ? 'No listings match your search'
-              : 'No listings available from other users'}
+              ? "No listings match your search"
+              : "No listings available from other users"}
           </Text>
         </View>
       ) : (
@@ -302,72 +292,72 @@ export default function Listings() {
   );
 }
 
-// --- STYLES ---
+// STYLES
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#050505',
+    backgroundColor: "#050505",
     paddingBottom: 90,
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: "bold",
+    color: "#ffffff",
   },
   headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   myListingsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#171717',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#171717",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#4ade80',
+    borderColor: "#4ade80",
     gap: 6,
   },
   myListingsButtonText: {
-    color: '#4ade80',
+    color: "#4ade80",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   filterButton: {
     padding: 8,
-    backgroundColor: '#171717',
+    backgroundColor: "#171717",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   searchContainer: {
     paddingHorizontal: 20,
     marginBottom: 10,
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#171717',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#171717",
     paddingHorizontal: 12,
     height: 40,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
     gap: 10,
   },
   searchInput: {
     flex: 1,
-    color: 'white',
+    color: "white",
   },
   listContent: {
     paddingHorizontal: 20,
@@ -375,65 +365,62 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 40,
   },
   emptyText: {
-    color: '#666',
+    color: "#666",
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 16,
   },
-  // -- ITEM CARD MODIFIÉE --
   itemContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 16,
-    backgroundColor: '#171717',
+    backgroundColor: "#171717",
     borderRadius: 16,
-    overflow: 'visible',
+    overflow: "visible",
     borderWidth: 1,
-    borderColor: '#262626',
+    borderColor: "#262626",
     minHeight: 130,
   },
   imageWrapper: {
     width: 110,
-    height: '100%',
-    backgroundColor: '#202020',
+    height: "100%",
+    backgroundColor: "#202020",
   },
   itemImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0a0a0a',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#0a0a0a",
   },
   detailsContainer: {
     flex: 1,
     padding: 12,
     paddingBottom: 12,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
-  infoTop: {
-    // Conteneur pour le texte du haut
-  },
+  infoTop: {},
   itemTitle: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 15,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 4,
   },
   itemDescription: {
-    color: '#9ca3af',
+    color: "#9ca3af",
     fontSize: 12,
     marginBottom: 4,
   },
@@ -441,20 +428,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tradeLabel: {
-    color: '#9ca3af',
+    color: "#9ca3af",
     fontSize: 10,
-    textTransform: 'uppercase',
-    fontWeight: '700',
+    textTransform: "uppercase",
+    fontWeight: "700",
   },
   tradeItems: {
-    color: '#4ade80',
+    color: "#4ade80",
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: "500",
   },
-  // -- BOUTONS D'ACTION --
   actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     gap: 12,
     marginTop: 8,
     paddingRight: 4,
@@ -464,14 +450,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#262626',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#262626",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   bubbleButton: {
-    backgroundColor: '#262626',
-    borderColor: '#4ade80',
+    backgroundColor: "#262626",
+    borderColor: "#4ade80",
   },
 });

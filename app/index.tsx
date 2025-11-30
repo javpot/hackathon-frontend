@@ -42,7 +42,7 @@ export default function Index() {
            <TouchableOpacity
             style={styles.confirmButton}
             activeOpacity={0.8}
-            onPress={() => router.push("/pulsepage")}
+            onPress={() => router.push("/connectwifi")}
           >
             <Text style={styles.confirmButtonText}>Confirmer</Text>
           </TouchableOpacity>

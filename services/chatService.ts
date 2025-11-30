@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getInventoryForBot } from '../database/db'; // Assure-toi que le chemin est bon
 
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_KEY;
+const API_KEY = 'AIzaSyAzCFsymyTEVJ_fR5xkK7M3JtgovlNNZy4';
 
 export interface BotResponse {
   id: string;

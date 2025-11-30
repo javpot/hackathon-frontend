@@ -1,11 +1,13 @@
 import TcpSocket from 'react-native-tcp-socket';
 import { Listing } from '../database/db';
 
-const PORT = 3000;
+const DEFAULT_PORT = 3001; // Changed to 3001 for testing (port 3000 was blocked)
 const HOST = '0.0.0.0';
+const MAX_PORT_ATTEMPTS = 5; // Try up to 5 ports (3001-3005)
 
 let server: any = null;
 let isRunning = false;
+let currentPort = DEFAULT_PORT; // Track which port we're actually using
 
 // In-memory storage for all listings from connected clients
 // Format: { [listingId]: { ...listing, clientId: string } }
@@ -47,10 +49,118 @@ export function addListingToStore(listing: Listing): string {
 /**
  * Start the TCP server
  */
+/**
+ * Try to start server on a specific port
+ * Returns true if port is available, false if in use
+ */
+async function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    let testServer: any = null;
+    let resolved = false;
+    
+    const cleanup = () => {
+      if (testServer && !resolved) {
+        try {
+          testServer.close();
+          testServer.destroy?.();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        testServer = null;
+      }
+    };
+
+    try {
+      testServer = TcpSocket.createServer(() => {});
+      
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          cleanup();
+          resolve(false); // Timeout = port probably in use
+        }
+      }, 1000);
+      
+      testServer.on('error', (error: any) => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          cleanup();
+          resolve(false); // Error = port in use
+        }
+      });
+
+      testServer.listen(port, HOST, () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          // Port is available, close test server
+          testServer.close(() => {
+            cleanup();
+            resolve(true);
+          });
+        }
+      });
+    } catch (error) {
+      if (!resolved) {
+        resolved = true;
+        cleanup();
+        resolve(false);
+      }
+    }
+  });
+}
+
 export async function startServer(): Promise<void> {
-  if (isRunning) {
-    console.log('Server already running');
-    return;
+  // Always try to stop any existing server first (even if isRunning is false, 
+  // the server might still be running from a previous hot reload)
+  if (server) {
+    console.log('[Server] ⚠️ Found existing server instance, stopping it first...');
+    try {
+      await stopServer();
+      // Wait longer for the port to be fully released
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error('[Server] Error stopping existing server:', error);
+      // Force clear server reference even if stop fails
+      server = null;
+      isRunning = false;
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+
+  // Reset state
+  isRunning = false;
+  server = null;
+
+  // Try to find an available port
+  let portToUse = DEFAULT_PORT;
+  let portFound = false;
+  
+  for (let attempt = 0; attempt < MAX_PORT_ATTEMPTS; attempt++) {
+    const testPort = DEFAULT_PORT + attempt;
+    console.log(`[Server] 🔍 Testing if port ${testPort} is available...`);
+    
+    const available = await isPortAvailable(testPort);
+    if (available) {
+      portToUse = testPort;
+      portFound = true;
+      console.log(`[Server] ✅ Port ${portToUse} is available`);
+      break;
+    } else {
+      console.log(`[Server] ❌ Port ${testPort} is in use, trying next port...`);
+      // Wait a bit before trying next port
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  }
+
+  if (!portFound) {
+    throw new Error(`Could not find an available port. Tried ports ${DEFAULT_PORT} to ${DEFAULT_PORT + MAX_PORT_ATTEMPTS - 1}. Please restart the app.`);
+  }
+
+  currentPort = portToUse;
+  if (portToUse !== DEFAULT_PORT) {
+    console.log(`[Server] ⚠️ Using port ${portToUse} instead of ${DEFAULT_PORT} (default port was in use)`);
   }
 
   return new Promise((resolve, reject) => {
@@ -118,14 +228,28 @@ export async function startServer(): Promise<void> {
       });
 
       server.on('error', (error: any) => {
-        console.error('Server error:', error);
+        console.error('[Server] ❌ Server error:', error);
+        // If it's a bind error, the port is already in use
+        if (error.code === 'EADDRINUSE' || error.message?.includes('Address already in use') || error.message?.includes('EADDRINUSE')) {
+          console.error('[Server] ⚠️ Port is already in use. Another server instance may be running.');
+          console.error('[Server] 💡 This might be from a previous app instance. Try:');
+          console.error('[Server]    1. Restart the app completely (not just hot reload)');
+          console.error('[Server]    2. Or wait a few seconds and try again');
+          isRunning = false;
+          server = null;
+          // Don't reject immediately - try to recover
+          setTimeout(() => {
+            reject(new Error('Port 3001 is already in use. Please restart the app or wait a moment and try again.'));
+          }, 100);
+          return;
+        }
         reject(error);
       });
 
-      server.listen(PORT, HOST, () => {
-        console.log(`[Server] ✅ Server listening on ${HOST}:${PORT}`);
-        console.log(`[Server] 📡 Ready to accept connections on port ${PORT}`);
-        console.log(`[Server] 💡 For Android emulator clients: Run "adb reverse tcp:${PORT} tcp:${PORT}" on your computer`);
+      server.listen(portToUse, HOST, () => {
+        console.log(`[Server] ✅ Server listening on ${HOST}:${portToUse}`);
+        console.log(`[Server] 📡 Ready to accept connections on port ${portToUse}`);
+        console.log(`[Server] 💡 For Android emulator clients: Run "adb reverse tcp:${portToUse} tcp:${portToUse}" on your computer`);
         isRunning = true;
         resolve();
       });
@@ -139,20 +263,57 @@ export async function startServer(): Promise<void> {
  * Stop the server
  */
 export async function stopServer(): Promise<void> {
-  if (!isRunning || !server) {
+  if (!server) {
+    console.log('[Server] No server instance to stop');
+    isRunning = false;
     return;
   }
 
   return new Promise((resolve) => {
-    server.close(() => {
-      console.log('[Server] 🛑 Server stopped - clearing all listings from memory');
-      // Clear all listings from memory when server stops
+    try {
+      const serverToClose = server;
+      
+      // Try to close gracefully
+      if (typeof serverToClose.close === 'function') {
+        serverToClose.close(() => {
+          console.log('[Server] 🛑 Server stopped gracefully');
+          cleanup();
+          resolve();
+        });
+        
+        // Force close after timeout
+        setTimeout(() => {
+          if (server === serverToClose) {
+            console.log('[Server] ⚠️ Force closing server after timeout');
+            try {
+              if (typeof serverToClose.destroy === 'function') {
+                serverToClose.destroy();
+              }
+            } catch (e) {
+              console.error('[Server] Error destroying server:', e);
+            }
+            cleanup();
+            resolve();
+          }
+        }, 2000);
+      } else {
+        // If close doesn't exist, just cleanup
+        cleanup();
+        resolve();
+      }
+    } catch (error) {
+      console.error('[Server] Error stopping server:', error);
+      cleanup();
+      resolve();
+    }
+    
+    function cleanup() {
+      console.log('[Server] 🧹 Cleaning up server state');
       listingsStore.clear();
-      listingIdCounter = 1; // Reset counter
+      listingIdCounter = 1;
       isRunning = false;
       server = null;
-      resolve();
-    });
+    }
   });
 }
 
@@ -327,6 +488,13 @@ function handleRequest(socket: any, request: string) {
  */
 export function serverIsRunning(): boolean {
   return isRunning;
+}
+
+/**
+ * Get the current port the server is using
+ */
+export function getCurrentPort(): number {
+  return currentPort;
 }
 
 /**

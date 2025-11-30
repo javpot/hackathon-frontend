@@ -1,25 +1,25 @@
 import {
-  FontAwesome5,
-  Ionicons,
-  MaterialCommunityIcons,
+    FontAwesome5,
+    Ionicons,
+    MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Dimensions, // Ajouté pour le chargement
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions, // Ajouté pour le chargement
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // --- IMPORT DU SERVICE CHATBOT ---
@@ -140,7 +140,7 @@ const Home: React.FC = () => {
     console.log('[Home] 🏥 Starting health check for client mode');
     const healthCheckInterval = setInterval(async () => {
       try {
-        const isAlive = await checkHostAlive(hostIP, 3000, 5000);
+        const isAlive = await checkHostAlive(hostIP, 3001, 5000);
         if (!isAlive) {
           console.log('[Home] ⚠️ Host is not responding - cleaning up and forcing navigation');
           // Remove client listings from host before disconnecting
@@ -151,7 +151,7 @@ const Home: React.FC = () => {
           if (vendorID) {
             try {
               const { deleteListingFromHost } = await import('../services/localclient');
-              await deleteListingFromHost(vendorID, hostIP, 3000);
+              await deleteListingFromHost(vendorID, hostIP, 3001);
               console.log('[Home] ✅ Client listings removed from host');
             } catch (error) {
               console.error('[Home] Error removing listings from host:', error);
@@ -196,7 +196,7 @@ const Home: React.FC = () => {
           if (vendorID) {
             try {
               const { deleteListingFromHost } = await import('../services/localclient');
-              await deleteListingFromHost(vendorID, hostIP, 3000);
+              await deleteListingFromHost(vendorID, hostIP, 3001);
               console.log('[Home] ✅ Cleaned up client listings on unmount');
             } catch (error) {
               console.error('[Home] Error cleaning up listings on unmount:', error);

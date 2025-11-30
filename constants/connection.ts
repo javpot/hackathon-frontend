@@ -1,5 +1,5 @@
 // Connection constants
-export const DEFAULT_SERVER_PORT = 3000;
+export const DEFAULT_SERVER_PORT = 3001; // Changed to 3001 for testing (port 3000 was blocked)
 export const DEFAULT_HOST = '0.0.0.0'; // Listen on all interfaces
 
 // Host network IP for emulator-to-emulator communication (simulates hotspot)

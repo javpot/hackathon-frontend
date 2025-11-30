@@ -63,9 +63,65 @@ export default function ConnectionModeScreen() {
 
   const handleStartHost = async () => {
     try {
-      await startServer();
+      // Import stopServer to ensure we can stop any existing instance
+      const { stopServer, serverIsRunning } = await import('../services/localServer');
+      
+      // Always try to stop any existing server first (even if state says it's not running,
+      // it might still be running from a previous hot reload)
+      console.log('[Host] Checking for existing server...');
+      if (serverIsRunning()) {
+        console.log('[Host] Server is running, stopping it first...');
+      }
+      
+      try {
+        await stopServer();
+        // Wait longer for port to be fully released (especially after hot reload)
+        console.log('[Host] Waiting for port to be released...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      } catch (error) {
+        console.log('[Host] Error stopping server (might not exist):', error);
+        // Wait anyway
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      // Try to start the server with retry
+      let retries = 2;
+      let lastError: any = null;
+      
+      while (retries >= 0) {
+        try {
+          await startServer();
+          break; // Success, exit retry loop
+        } catch (error: any) {
+          lastError = error;
+          if (error.message?.includes('Address already in use') || error.message?.includes('EADDRINUSE')) {
+            retries--;
+            if (retries >= 0) {
+              console.log(`[Host] Port still in use, waiting and retrying (${retries} retries left)...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              // Try stopping again
+              try {
+                await stopServer();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } catch (e) {
+                // Ignore
+              }
+            }
+          } else {
+            throw error; // Not a port conflict, throw immediately
+          }
+        }
+      }
+      
+      if (retries < 0 && lastError) {
+        throw new Error('Failed to start server after retries. Port 3001 is still in use. Please restart the app completely (not just hot reload).');
+      }
       setHostServerStarted(true);
       await AsyncStorage.setItem('connectionMode', 'host');
+      
+      // Get the actual port being used (might be different from default if port was in use)
+      const { getCurrentPort } = await import('../services/localServer');
+      const actualPort = getCurrentPort();
       
       // Get the host's IP address to display
       const gatewayIP = await getHotspotGatewayIP();
@@ -75,20 +131,34 @@ export default function ConnectionModeScreen() {
       
       // For emulators, show ADB instructions
       const isEmulator = gatewayIP === '10.0.2.2';
+      const portMessage = actualPort !== 3001 ? `\n\n⚠️ Note: Using port ${actualPort} (port 3001 was in use)\nRun: "adb reverse tcp:${actualPort} tcp:${actualPort}"` : `\n\nRun: "adb reverse tcp:${actualPort} tcp:${actualPort}"`;
       const message = isEmulator
-        ? `Server started! You are now a host.\n\nFor emulator setup:\n1. On your computer, run: "adb reverse tcp:3000 tcp:3000"\n2. Client emulator should connect to: 10.0.2.2`
+        ? `Server started on port ${actualPort}! You are now a host.${portMessage}\n2. Client emulator should connect to: 10.0.2.2:${actualPort}`
         : gatewayIP 
-          ? `Server started! Your host IP is: ${gatewayIP}\n\nClients should connect to this IP after joining your hotspot.`
-          : 'Server started! You are now a host.\n\nClients should connect to your hotspot IP (usually 192.168.43.1 for Android).';
+          ? `Server started on port ${actualPort}! Your host IP is: ${gatewayIP}\n\nClients should connect to ${gatewayIP}:${actualPort} after joining your hotspot.`
+          : `Server started on port ${actualPort}! You are now a host.\n\nClients should connect to your hotspot IP:${actualPort} (usually 192.168.43.1:${actualPort} for Android).`;
       
       Alert.alert('Success', message);
       // Navigate to home after a short delay
       setTimeout(() => {
         router.replace('/home');
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting server:', error);
-      Alert.alert('Error', 'Failed to start server. Please try again.');
+      const errorMessage = error?.message || 'Unknown error';
+      
+      if (errorMessage.includes('Address already in use') || errorMessage.includes('EADDRINUSE')) {
+        Alert.alert(
+          'Port Already in Use',
+          'Port 3001 is already in use. This usually happens after a hot reload.\n\n' +
+          'Solutions:\n' +
+          '1. Restart the app completely (close and reopen, not just hot reload)\n' +
+          '2. Wait 10-15 seconds and try again\n' +
+          '3. If problem persists, restart your development server'
+        );
+      } else {
+        Alert.alert('Error', `Failed to start server: ${errorMessage}`);
+      }
     }
   };
 
@@ -179,7 +249,7 @@ export default function ConnectionModeScreen() {
   const handleDiscoverHost = async () => {
     setIsDiscovering(true);
     try {
-      const hostIP = await discoverHostIP(3000, 3000);
+      const hostIP = await discoverHostIP(3001, 2000);
       if (hostIP) {
         setClientIP(hostIP);
         Alert.alert('Host Found', `Found host at ${hostIP}. You can now connect.`);
@@ -187,7 +257,7 @@ export default function ConnectionModeScreen() {
         Alert.alert(
           'No Host Found',
           Platform.OS === 'android'
-            ? 'Could not find host.\n\nFor Emulators:\n1. Make sure host emulator has server running\n2. On your computer, run: "adb reverse tcp:3000 tcp:3000"\n3. Try connecting to 10.0.2.2 manually\n\nFor Real Devices:\n1. Connect to host\'s hotspot\n2. Host IP is usually 192.168.43.1'
+            ? 'Could not find host.\n\nFor Emulators:\n1. Make sure host emulator has server running\n2. On your computer, run: "adb reverse tcp:3001 tcp:3001"\n3. Try connecting to 10.0.2.2 manually\n\nFor Real Devices:\n1. Connect to host\'s hotspot\n2. Host IP is usually 192.168.43.1'
             : 'Could not find host on hotspot network.\n\nMake sure:\n1. You are connected to the host\'s hotspot\n2. Host device has server running\n3. Try entering the IP manually'
         );
       }
@@ -202,7 +272,7 @@ export default function ConnectionModeScreen() {
   const handleConnectClient = async () => {
     // If IP field is empty, try auto-discovery first
     if (!clientIP.trim()) {
-      const result = await connectToHostViaHotspot(3000);
+      const result = await connectToHostViaHotspot(3001);
       if (result.success && result.hostIP) {
         setClientIP(result.hostIP);
         setClientConnected(true);
@@ -224,10 +294,10 @@ export default function ConnectionModeScreen() {
     setIsConnecting(true);
     try {
       const hostIP = clientIP.trim();
-      console.log(`Attempting to connect to host at ${hostIP}:3000...`);
+      console.log(`Attempting to connect to host at ${hostIP}:3001...`);
       
       // Test connection to the host
-      const response = await testServerConnection(hostIP, 3000);
+      const response = await testServerConnection(hostIP, 3001);
       console.log('Connection successful! Response:', response);
       
       setClientConnected(true);
@@ -249,7 +319,7 @@ export default function ConnectionModeScreen() {
         if (isEmulatorIP) {
           userMessage += '\n\nFor Android Emulators:\n';
           userMessage += '1. Host emulator: Make sure server is running\n';
-          userMessage += '2. On your computer, run: "adb reverse tcp:3000 tcp:3000"\n';
+          userMessage += '2. On your computer, run: "adb reverse tcp:3001 tcp:3001"\n';
           userMessage += '3. This forwards host machine port to host emulator\n';
           userMessage += '4. Client emulator connects to 10.0.2.2 (maps to host machine)';
         } else {
@@ -295,7 +365,7 @@ export default function ConnectionModeScreen() {
                 <Ionicons name="information-circle" size={16} color="#4ade80" />
                 <Text style={styles.infoText}>
                   Emulator Mode: After starting server, run on your computer:{'\n'}
-                  <Text style={styles.codeText}>adb reverse tcp:3000 tcp:3000</Text>
+                  <Text style={styles.codeText}>adb reverse tcp:3001 tcp:3001</Text>
                 </Text>
               </View>
             )}
@@ -311,7 +381,7 @@ export default function ConnectionModeScreen() {
 
             <Text style={styles.stepText}>
               {Platform.OS === 'android'
-                ? 'For Emulators:\n1. Click "Start Host" below\n2. On your computer, run: "adb reverse tcp:3000 tcp:3000"\n3. Clients can connect using 10.0.2.2\n\nFor Real Devices:\n1. Enable your device\'s hotspot\n2. Return to this app\n3. Click "Start Host" below'
+                ? 'For Emulators:\n1. Click "Start Host" below\n2. On your computer, run: "adb reverse tcp:3001 tcp:3001"\n3. Clients can connect using 10.0.2.2\n\nFor Real Devices:\n1. Enable your device\'s hotspot\n2. Return to this app\n3. Click "Start Host" below'
                 : '1. Enable your device\'s hotspot\n2. Return to this app\n3. Click the Host button below'}
             </Text>
 
@@ -338,7 +408,7 @@ export default function ConnectionModeScreen() {
                     <Ionicons name="information-circle" size={16} color="#4ade80" />
                     <Text style={styles.ipText}>
                       {hostIPAddress === '10.0.2.2' 
-                        ? 'Emulator Mode: Clients use 10.0.2.2\n(Run: adb reverse tcp:3000 tcp:3000)'
+                        ? 'Emulator Mode: Clients use 10.0.2.2\n(Run: adb reverse tcp:3001 tcp:3001)'
                         : `Host IP: ${hostIPAddress}`}
                     </Text>
                   </View>
@@ -453,7 +523,7 @@ export default function ConnectionModeScreen() {
 
             <Text style={styles.hintText}>
               {Platform.OS === 'android' 
-                ? 'For Android Emulators:\n1. Host: Start server, then run "adb reverse tcp:3000 tcp:3000" on your computer\n2. Client: Use 10.0.2.2 (default) or click "Discover Host"\n\nFor Real Devices:\n1. Connect to host\'s hotspot\n2. Click "Discover Host" or enter IP (usually 192.168.43.1)'
+                ? 'For Android Emulators:\n1. Host: Start server, then run "adb reverse tcp:3001 tcp:3001" on your computer\n2. Client: Use 10.0.2.2 (default) or click "Discover Host"\n\nFor Real Devices:\n1. Connect to host\'s hotspot\n2. Click "Discover Host" or enter IP (usually 192.168.43.1)'
                 : selectedNetwork 
                   ? `Selected: ${selectedNetwork}. Click "Discover Host" or enter the host IP address.`
                   : 'Connect to the host\'s hotspot, then click "Discover Host" or enter the host IP manually.'}

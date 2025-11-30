@@ -96,7 +96,7 @@ export default function ListingsScreen() {
         // If client, sync existing listings to host
         // If sync fails, host might be down - check health first
         try {
-          const isAlive = await checkHostAlive(hostIP, 3000, 5000);
+          const isAlive = await checkHostAlive(hostIP, 3001, 5000);
           if (!isAlive) {
             console.log('[Client] ⚠️ Host is not alive during initialization - forcing navigation');
             await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
@@ -144,7 +144,7 @@ export default function ListingsScreen() {
       console.log('[Client] 🏥 Starting health check - will check host every 7 seconds');
       healthCheckInterval = setInterval(async () => {
         try {
-          const isAlive = await checkHostAlive(hostIP, 3000, 5000);
+          const isAlive = await checkHostAlive(hostIP, 3001, 5000);
           if (!isAlive) {
             console.log('[Client] ⚠️ Host is not responding - navigating back to connection mode');
             // Clear connection info
@@ -159,7 +159,7 @@ export default function ListingsScreen() {
           // If health check fails, cleanup listings and assume host is down
           if (vendorID && hostIP) {
             try {
-              await deleteListingFromHost(vendorID, hostIP, 3000);
+              await deleteListingFromHost(vendorID, hostIP, 3001);
               console.log('[Client] ✅ Cleaned up listings before disconnect');
             } catch (cleanupError) {
               console.error('[Client] Error cleaning up listings:', cleanupError);
@@ -214,7 +214,7 @@ export default function ListingsScreen() {
         }
         
         try {
-          const result = await sendListingToHost(listingToSync, hostIP, 3000);
+          const result = await sendListingToHost(listingToSync, hostIP, 3001);
           console.log(`[Client] ✅ Synced listing "${listingToSync.vendorName}" to host:`, result);
         } catch (error: any) {
           console.error(`[Client] ❌ Failed to sync listing "${listingToSync.vendorName}" to host:`, error.message || error);
@@ -517,13 +517,13 @@ export default function ListingsScreen() {
         // If connection fails, force navigation back to connection mode
         let serverListings;
         try {
-          serverListings = await pollListingsFromHost(hostIP, 3000);
+          serverListings = await pollListingsFromHost(hostIP, 3001);
         } catch (error) {
           console.log('[Client] ⚠️ Failed to poll host - server is down, cleaning up and forcing navigation');
           // Remove client listings from host before disconnecting
           if (vendorID && hostIP) {
             try {
-              await deleteListingFromHost(vendorID, hostIP, 3000);
+              await deleteListingFromHost(vendorID, hostIP, 3001);
               console.log('[Client] ✅ Cleaned up listings before disconnect');
             } catch (cleanupError) {
               console.error('[Client] Error cleaning up listings:', cleanupError);
@@ -751,7 +751,7 @@ export default function ListingsScreen() {
       // Sync with host if connected (both client and host should send to server)
       console.log(`[${connectionMode}] Checking sync conditions - connectionMode: ${connectionMode}, hostIP: ${hostIP}`);
       if (connectionMode === 'client' && hostIP) {
-        console.log(`[Client] 📤 Attempting to send listing to host at ${hostIP}:3000`);
+        console.log(`[Client] 📤 Attempting to send listing to host at ${hostIP}:3001`);
         console.log(`[Client] Listing to send:`, {
           vendorID: newListing.vendorID,
           vendorName: newListing.vendorName,
@@ -759,7 +759,7 @@ export default function ListingsScreen() {
           productsInReturn: newListing.productsInReturn
         });
         try {
-          const result = await sendListingToHost(newListing, hostIP, 3000);
+          const result = await sendListingToHost(newListing, hostIP, 3001);
           console.log('[Client] ✅ Listing synced to host successfully! Response:', result);
           // Immediately refresh barter to see if it appears
           setTimeout(() => {

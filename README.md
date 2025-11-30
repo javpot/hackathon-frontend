@@ -48,7 +48,7 @@ This project uses `react-native-maps` for native maps. Below are the steps to em
 1) Install dependencies
 ```bash
 # Use the Expo install command so you get compatible versions
-expo install react-native-maps expo-location
+expo install react-native-maps expo-location expo-shake
 ```
 
 2) Add Google Maps API keys
@@ -94,6 +94,11 @@ Dev tips:
 - To test the map on a real device, build a development client or use `eas build`. Runtime provider support (Google maps) is not available with the default Expo Go app.
 - For Android emulators, use Google Play image and ensure Google Play Services are available.
 - For iOS testing, add the API key and build the app (or use a dev client built with EAS).
+
+Shake-to-alert & manual alerts
+- This app includes a global shake listener (powered by `expo-shake`) that opens a modal to select an alert category (Hospital, Food, Water, Shelter, Other). Alerts are stored in a global context and shown on the map.
+- Manual alerts: tap the floating + button on the map to create an alert at the current location.
+- To test properly, run a dev client or EAS build — the default Expo Go client may intercept shake gestures.
 
 Troubleshooting - "RNMapsAirModule could not be found" and plugin errors
 

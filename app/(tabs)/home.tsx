@@ -1,32 +1,25 @@
 import {
-    FontAwesome5,
-    Ionicons,
-    MaterialCommunityIcons,
+  FontAwesome5,
+  Ionicons,
+  MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import {
-    ActivityIndicator,
-    Dimensions, // Ajouté pour le chargement
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-
-// --- IMPORT DU SERVICE CHATBOT ---
-import { initDB } from "../database/db";
-import { sendChatMessage } from "../services/chatService";
-import { stopServer } from "../services/localServer";
-import { checkHostAlive, sendKeepAlive } from "../services/localclient";
 
 const { width } = Dimensions.get("window");
 
@@ -324,179 +317,144 @@ const Home: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#050505" />
-
-      {/* --- HEADER --- */}
-      <View style={styles.headerContainer}>
-        <LinearGradient
-          colors={["#15803d", "#4ade80"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.statusBadge}
-        >
-          <MaterialCommunityIcons name="heart-pulse" size={20} color="white" />
-          <Text style={styles.statusText}>SURVIVABILITY INDEX: HIGH</Text>
-        </LinearGradient>
-        
-        {/* Connection Mode Badge and Logout */}
-        {connectionMode && (
-          <View style={styles.connectionBadgeContainer}>
-            <View style={[
-              styles.connectionBadge,
-              connectionMode === 'host' ? styles.hostBadge : styles.clientBadge
-            ]}>
-              <Ionicons 
-                name={connectionMode === 'host' ? 'server' : 'phone-portrait'} 
-                size={14} 
-                color="#fff" 
-              />
-              <Text style={styles.connectionBadgeText}>
-                {connectionMode === 'host' ? 'HOST' : 'CLIENT'}
-              </Text>
-            </View>
-            <TouchableOpacity 
-              onPress={handleLogout}
-              style={styles.logoutButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="log-out-outline" size={18} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* --- CONTENT (FIXED LAYOUT) --- */}
-      {/* On utilise KeyboardAvoidingView pour que le clavier ne cache pas le chat */}
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"} 
-        style={styles.mainContent}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? -90 : 0}
       >
-        {/* Titre */}
-        <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>Near you</Text>
-          <Text style={styles.subTitle}>Resources detected in your sector</Text>
-        </View>
-
-        {/* --- HORIZONTAL CARDS --- */}
-        <View style={styles.horizontalListContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
+        {/* --- HEADER --- */}
+        <View style={styles.headerContainer}>
+          <LinearGradient
+            colors={["#15803d", "#4ade80"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.statusBadge}
           >
-            <ResourceCard
-              title="St. Mary's"
-              subtitle="Emergency"
-              distance="4km"
-              iconName="hospital-box"
-              color="#ef4444"
+            <MaterialCommunityIcons
+              name="heart-pulse"
+              size={20}
+              color="white"
             />
-            <ResourceCard
-              title="Sector 7 Food"
-              subtitle="Rations"
-              distance="4km"
-              iconName="food-drumstick"
-              color="#f59e0b"
-            />
-            <TouchableOpacity activeOpacity={0.8} style={styles.cardHorizontal}>
-              <LinearGradient
-                colors={["#1f2937", "#111827"]}
-                style={styles.statsGradient}
-              >
-                <View style={styles.statsRow}>
-                  <FontAwesome5 name="users" size={16} color="#4ade80" />
-                  <Text style={styles.statsTitle}>Active</Text>
-                </View>
-                <Text style={styles.bigStatNumber}>{activeUserCount}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </ScrollView>
+            <Text style={styles.statusText}>SURVIVABILITY INDEX: HIGH</Text>
+          </LinearGradient>
         </View>
 
-        {/* --- CHATBOT SECTION --- */}
-        <View style={styles.chatWrapper}>
-          <View style={styles.chatContainer}>
-            {/* Header Chat */}
-            <View style={styles.chatHeader}>
-              <View style={styles.chatHeaderLeft}>
-                <View style={[styles.pulseDot, isLoading && styles.pulseActive]} />
-                <Text style={styles.chatTitle}>
-                    {isLoading ? "ANALYZING DATA..." : "SURVIVAL AI LINK"}
-                </Text>
-              </View>
-              <MaterialCommunityIcons
-                name="robot-outline"
-                size={20}
-                color="#4ade80"
-              />
-            </View>
+        {/* --- CONTENT (FIXED LAYOUT) --- */}
+        <View style={styles.mainContent}>
+          {/* Titre */}
+          <View style={styles.titleSection}>
+            <Text style={styles.mainTitle}>Near you</Text>
+            <Text style={styles.subTitle}>
+              Resources detected in your sector
+            </Text>
+          </View>
 
-            {/* Messages Dynamiques */}
+          {/* --- HORIZONTAL CARDS --- */}
+          <View style={styles.horizontalListContainer}>
             <ScrollView
-              ref={scrollViewRef}
-              style={styles.chatBody}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 10 }}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScrollContent}
             >
-              {messages.map((msg) => (
-                <View 
-                    key={msg.id} 
-                    style={msg.sender === 'bot' ? styles.aiMessageRow : styles.userMessageRow}
-                >
-                  {/* Avatar seulement pour le bot */}
-                  {msg.sender === 'bot' && (
-                    <View style={styles.aiAvatar}>
-                      <Text style={styles.aiAvatarText}>AI</Text>
-                    </View>
-                  )}
+              {/* Hôpital */}
+              <ResourceCard
+                title="St. Mary's"
+                subtitle="Emergency"
+                distance="4km"
+                iconName="hospital-box"
+                color="#ef4444"
+              />
 
-                  {/* Bulle de message */}
-                  <View style={msg.sender === 'bot' ? styles.messageBubbleAi : styles.messageBubbleUser}>
-                    <Text style={msg.sender === 'bot' ? styles.messageTextAi : styles.messageTextUser}>
-                      {msg.text}
+              {/* Banque Alimentaire */}
+              <ResourceCard
+                title="Sector 7 Food"
+                subtitle="Rations"
+                distance="4km"
+                iconName="food-drumstick"
+                color="#f59e0b"
+              />
+
+              {/* Stats Card */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.cardHorizontal}
+              >
+                <LinearGradient
+                  colors={["#1f2937", "#111827"]}
+                  style={styles.statsGradient}
+                >
+                  <View style={styles.statsRow}>
+                    <FontAwesome5 name="users" size={16} color="#4ade80" />
+                    <Text style={styles.statsTitle}>Active</Text>
+                  </View>
+                  <Text style={styles.bigStatNumber}>67</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+
+          {/* --- CHATBOT SECTION --- */}
+          <View style={styles.chatWrapper}>
+            <View style={styles.chatContainer}>
+              {/* Header Chat */}
+              <View style={styles.chatHeader}>
+                <View style={styles.chatHeaderLeft}>
+                  <View style={styles.pulseDot} />
+                  <Text style={styles.chatTitle}>SURVIVAL AI LINK</Text>
+                </View>
+                <MaterialCommunityIcons
+                  name="robot-outline"
+                  size={20}
+                  color="#4ade80"
+                />
+              </View>
+
+              {/* Messages */}
+              <ScrollView
+                style={styles.chatBody}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.aiMessageRow}>
+                  <View style={styles.aiAvatar}>
+                    <Text style={styles.aiAvatarText}>AI</Text>
+                  </View>
+                  <View style={styles.messageBubbleAi}>
+                    <Text style={styles.messageTextAi}>
+                      ⚠️ Weather alert: Acid rain approaching Sector 4.
                     </Text>
                   </View>
                 </View>
-              ))}
 
-              {/* Indicateur de chargement dans le chat */}
-              {isLoading && (
-                  <View style={styles.aiMessageRow}>
-                      <View style={styles.aiAvatar}><Text style={styles.aiAvatarText}>...</Text></View>
-                      <View style={[styles.messageBubbleAi, { width: 50, alignItems: 'center'}]}>
-                          <ActivityIndicator size="small" color="#4ade80" />
-                      </View>
+                <View style={styles.aiMessageRow}>
+                  <View style={styles.aiAvatar}>
+                    <Text style={styles.aiAvatarText}>AI</Text>
                   </View>
-              )}
-            </ScrollView>
+                  <View style={styles.messageBubbleAi}>
+                    <Text style={styles.messageTextAi}>
+                      Water source detected 2km North. Purify before
+                      consumption.
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
 
-            {/* Input Zone */}
-            <View style={styles.inputArea}>
-              <TextInput
-                style={styles.inputField}
-                placeholder="Ask for guidance..."
-                placeholderTextColor="#525252"
-                value={inputText}
-                onChangeText={setInputText}
-                onSubmitEditing={handleSend} // Envoi avec la touche Entrée
-              />
-              <TouchableOpacity 
-                style={[styles.sendButton, { opacity: inputText ? 1 : 0.5 }]} 
-                onPress={handleSend}
-                disabled={!inputText}
-              >
-                <Ionicons name="arrow-up" size={18} color="black" />
-              </TouchableOpacity>
+              {/* Input Zone */}
+              <View style={styles.inputArea}>
+                <TextInput
+                  style={styles.inputField}
+                  placeholder="Ask for guidance..."
+                  placeholderTextColor="#525252"
+                />
+                <TouchableOpacity style={styles.sendButton}>
+                  <Ionicons name="arrow-up" size={18} color="black" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
+          {/* Spacer for TabBar */}
+          <View style={{ height: 90 }} />
         </View>
       </KeyboardAvoidingView>
-
-      {/* --- BARRE DE NAVIGATION --- */}
-      <View style={styles.tabBar}>
-        <TabItem icon="home" label="Home" isActive onPress={() => {}} />
-        <TabItem icon="map" label="Map" onPress={() => router.push("/map")} />
-        <TabItem icon="pricetags" label="Listing" onPress={() => router.push("/listings")} />
-      </View>
     </SafeAreaView>
   );
 };
@@ -710,8 +668,7 @@ const styles = StyleSheet.create({
   // --- CHATBOT WRAPPER ---
   chatWrapper: {
     flex: 1,
-    marginTop: 30,
-    marginBottom: Platform.OS === "ios" ? 90 : 70,
+    marginTop: 30, // J'ai ajouté de l'espace ici (30px)
   },
   chatContainer: {
     flex: 1,

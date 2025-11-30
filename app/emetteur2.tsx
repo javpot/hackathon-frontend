@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  ImageStyle,
   SafeAreaView,
   StatusBar,
   StyleSheet,
@@ -77,6 +76,15 @@ export default function Emetteur2() {
             style={[styles.actionButton, styles.secondaryAction]}
             activeOpacity={0.8}
             onPress={() => router.push("./map")}
+          >
+            <Text style={[styles.actionButtonText, styles.secondaryActionText]}>Voir la carte</Text>
+          </TouchableOpacity>
+
+          {/* A small testing button to open the map screen */}
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryAction]}
+            activeOpacity={0.8}
+            onPress={() => router.push("/map")}
           >
             <Text style={[styles.actionButtonText, styles.secondaryActionText]}>Voir la carte</Text>
           </TouchableOpacity>
@@ -176,6 +184,15 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "700",
+  } as TextStyle,
+  secondaryAction: {
+    marginTop: 10,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: THEME_COLOR,
+  } as ViewStyle,
+  secondaryActionText: {
+    color: THEME_COLOR,
   } as TextStyle,
   secondaryAction: {
     marginTop: 10,

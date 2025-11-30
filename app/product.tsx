@@ -1,19 +1,19 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
-  StyleSheet,
-  View,
-  Text,
-  Image,
-  SafeAreaView,
-  TouchableOpacity,
-  StatusBar,
-  ViewStyle,
-  TextStyle,
-  ImageStyle,
   Dimensions,
+  Image,
+  ImageStyle,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
 // Récupération de la largeur pour le dimensionnement de l'image
 const { width } = Dimensions.get("window");
@@ -64,19 +64,6 @@ export default function Product() {
       </View>
 
       {/* --- BARRE DE NAVIGATION (BOTTOM TAB) --- */}
-      <View style={styles.bottomBar}>
-        {/* Onglet Home */}
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="home" size={28} color="white" />
-          <Text style={styles.tabText}>Home</Text>
-        </TouchableOpacity>
-
-        {/* Onglet Listing */}
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="pricetag" size={28} color="white" />
-          <Text style={styles.tabText}>Listing</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }

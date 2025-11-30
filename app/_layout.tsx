@@ -14,18 +14,12 @@ export default function RootLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="home" options={{ headerShown: false }} />
       <Stack.Screen
-        name="emetteur1"
+        name="map"
         options={{
-          title: "Émetteur",
-          headerBackTitle: "Back",
-        }}
-      />
-      <Stack.Screen
-        name="emetteur2"
-        options={{
-          title: "Émetteur 2",
-          headerBackTitle: "Back",
+          title: "Carte",
+          headerShown: false,
         }}
       />
       <Stack.Screen

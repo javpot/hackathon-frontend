@@ -70,6 +70,14 @@ export async function initDB(deviceVendorID?: string) {
             image TEXT,
             quantity INTEGER
         );
+        CREATE TABLE IF NOT EXISTS waypoints (
+            id TEXT PRIMARY KEY NOT NULL,
+            latitude REAL,
+            longitude REAL,
+            type TEXT NOT NULL,
+            createdAt INTEGER NOT NULL,
+            message TEXT
+        );
     `);
     
     // Migrate existing listings table to add new columns if they don't exist
@@ -242,6 +250,41 @@ export async function getInventoryForBot(): Promise<string> {
     }
 }
 
+// --- WAYPOINTS ---
+
+export type Waypoint = {
+    id: string;
+    latitude?: number;
+    longitude?: number;
+    type: string;
+    createdAt: number;
+    message?: string;
+};
+
+export async function addWaypoint(waypoint: Waypoint): Promise<void> {
+    const database = ensureDB();
+    await database.runAsync(
+        'INSERT OR REPLACE INTO waypoints (id, latitude, longitude, type, createdAt, message) VALUES (?, ?, ?, ?, ?, ?)',
+        [waypoint.id, waypoint.latitude ?? null, waypoint.longitude ?? null, waypoint.type, waypoint.createdAt, waypoint.message ?? null]
+    );
+}
+
+export async function getAllWaypoints(): Promise<Waypoint[]> {
+    const database = ensureDB();
+    const rows = await database.getAllAsync('SELECT * FROM waypoints ORDER BY createdAt DESC') as Waypoint[];
+    return rows;
+}
+
+export async function deleteWaypointById(id: string): Promise<void> {
+    const database = ensureDB();
+    await database.runAsync('DELETE FROM waypoints WHERE id = ?', [id]);
+}
+
+export async function clearAllWaypoints(): Promise<void> {
+    const database = ensureDB();
+    await database.runAsync('DELETE FROM waypoints');
+}
+
 export default {
     initDB,
     addListing,
@@ -255,5 +298,9 @@ export default {
     getRessourceByName,
     deleteRessourceById,
     getAllListingsWithRessources,
-    getInventoryForBot, 
+    getInventoryForBot,
+    addWaypoint,
+    getAllWaypoints,
+    deleteWaypointById,
+    clearAllWaypoints,
 };

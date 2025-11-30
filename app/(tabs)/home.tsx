@@ -5,6 +5,7 @@ import {
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -20,10 +21,12 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import { AlertType, MapAlert, useAlerts } from "../../contexts/AlertContext";
 import { initDB } from "../../database/db";
 import { sendChatMessage } from "../../services/chatService";
 import { stopServer } from "../../services/localServer";
 import { checkHostAlive, sendKeepAlive } from "../../services/localclient";
+import { calculateDistance, formatDistance } from "../../utils/distance";
 
 const { width } = Dimensions.get("window");
 
@@ -44,6 +47,7 @@ interface Message {
 
 const Home: React.FC = () => {
   const router = useRouter();
+  const { alerts } = useAlerts();
   
   // --- 1. ÉTATS (STATE) ---
   const [inputText, setInputText] = useState("");
@@ -52,6 +56,8 @@ const Home: React.FC = () => {
   const [hostIP, setHostIP] = useState<string>('');
   const [activeUserCount, setActiveUserCount] = useState<number>(0);
   const [vendorID, setVendorID] = useState<string>('');
+  const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
+  const [survivabilityStatus, setSurvivabilityStatus] = useState<'safe' | 'cautious' | 'dangerous'>('safe');
   
   // Messages initiaux (Hardcodés pour l'ambiance, mais stockés dans le state)
   const [messages, setMessages] = useState<Message[]>([
@@ -138,7 +144,72 @@ const Home: React.FC = () => {
       }
     };
     loadConnectionMode();
+
+    // Get user location
+    const getLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          setUserLocation(location);
+        }
+      } catch (error) {
+        console.error('Error getting location:', error);
+      }
+    };
+    getLocation();
   }, []);
+
+  // Update survivability status based on nearby waypoints
+  useEffect(() => {
+    const updateSurvivability = () => {
+      if (!userLocation) {
+        setSurvivabilityStatus('safe');
+        return;
+      }
+
+      const userLat = userLocation.coords.latitude;
+      const userLon = userLocation.coords.longitude;
+      const radiusKm = 2; // 2km radius
+
+      // Check for danger waypoints within 2km
+      const hasDangerNearby = alerts.some((alert) => {
+        if (alert.type !== 'danger' || !alert.coords) return false;
+        const distance = calculateDistance(
+          userLat,
+          userLon,
+          alert.coords.latitude,
+          alert.coords.longitude
+        );
+        return distance <= radiusKm;
+      });
+
+      // Check for warning waypoints within 2km
+      const hasWarningNearby = alerts.some((alert) => {
+        if (alert.type !== 'warning' || !alert.coords) return false;
+        const distance = calculateDistance(
+          userLat,
+          userLon,
+          alert.coords.latitude,
+          alert.coords.longitude
+        );
+        return distance <= radiusKm;
+      });
+
+      // Set status: dangerous > cautious > safe
+      if (hasDangerNearby) {
+        setSurvivabilityStatus('dangerous');
+      } else if (hasWarningNearby) {
+        setSurvivabilityStatus('cautious');
+      } else {
+        setSurvivabilityStatus('safe');
+      }
+    };
+
+    updateSurvivability();
+  }, [alerts, userLocation]);
 
   // Keep-alive and active user count tracking
   useEffect(() => {
@@ -330,7 +401,13 @@ const Home: React.FC = () => {
         {/* --- HEADER --- */}
         <View style={styles.headerContainer}>
           <LinearGradient
-            colors={["#15803d", "#4ade80"]}
+            colors={
+              survivabilityStatus === 'dangerous'
+                ? ["#dc2626", "#ef4444"]
+                : survivabilityStatus === 'cautious'
+                ? ["#f59e0b", "#fbbf24"]
+                : ["#15803d", "#4ade80"]
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.statusBadge}
@@ -340,8 +417,29 @@ const Home: React.FC = () => {
               size={20}
               color="white"
             />
-            <Text style={styles.statusText}>SURVIVABILITY INDEX: HIGH</Text>
+            <Text style={styles.statusText}>
+              SURVIVABILITY INDEX: {survivabilityStatus.toUpperCase()}
+            </Text>
           </LinearGradient>
+
+          {/* Offline Mode Indicator */}
+          {connectionMode === 'offline' && (
+            <View style={styles.offlineBubble}>
+              <View style={styles.offlineBubbleContent}>
+                <View style={styles.offlineIndicator}>
+                  <View style={styles.offlineDot} />
+                  <Text style={styles.offlineText}>Offline Mode</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.offlineLogoutButton}
+                  onPress={handleLogout}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="log-out-outline" size={16} color="#ffffff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* --- CONTENT (FIXED LAYOUT) --- */}
@@ -361,25 +459,7 @@ const Home: React.FC = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScrollContent}
             >
-              {/* Hôpital */}
-              <ResourceCard
-                title="St. Mary's"
-                subtitle="Emergency"
-                distance="4km"
-                iconName="hospital-box"
-                color="#ef4444"
-              />
-
-              {/* Banque Alimentaire */}
-              <ResourceCard
-                title="Sector 7 Food"
-                subtitle="Rations"
-                distance="4km"
-                iconName="food-drumstick"
-                color="#f59e0b"
-              />
-
-              {/* Stats Card */}
+              {/* Stats Card - Active Users (First Position) */}
               <TouchableOpacity
                 activeOpacity={0.8}
                 style={styles.cardHorizontal}
@@ -395,6 +475,62 @@ const Home: React.FC = () => {
                   <Text style={styles.bigStatNumber}>{activeUserCount}</Text>
                 </LinearGradient>
               </TouchableOpacity>
+
+              {/* Dynamic waypoint cards - show closest of each type */}
+              {(() => {
+                const getClosestWaypointCard = (type: AlertType) => {
+                  if (!userLocation) return null;
+
+                  const closest = findClosestWaypoint(
+                    alerts,
+                    type,
+                    userLocation.coords.latitude,
+                    userLocation.coords.longitude
+                  );
+
+                  if (!closest || !closest.coords) return null;
+
+                  const distance = formatDistance(
+                    calculateDistance(
+                      userLocation.coords.latitude,
+                      userLocation.coords.longitude,
+                      closest.coords.latitude,
+                      closest.coords.longitude
+                    )
+                  );
+
+                  const config = getTypeConfig(type);
+                  // Capitalize first letter of type if no custom message
+                  const typeCapitalized = closest.type.charAt(0).toUpperCase() + closest.type.slice(1);
+                  // Use custom message if available, otherwise use capitalized type
+                  const title = closest.message && closest.message !== closest.type 
+                    ? closest.message 
+                    : typeCapitalized;
+                  const subtitle = closest.message && closest.message !== closest.type 
+                    ? closest.message 
+                    : config.defaultSubtitle;
+
+                  return (
+                    <ResourceCard
+                      key={type}
+                      title={title}
+                      subtitle={subtitle}
+                      distance={distance}
+                      iconName={config.iconName}
+                      color={config.color}
+                    />
+                  );
+                };
+
+                return (
+                  <>
+                    {getClosestWaypointCard('hospital')}
+                    {getClosestWaypointCard('food')}
+                    {getClosestWaypointCard('water')}
+                    {getClosestWaypointCard('shelter')}
+                  </>
+                );
+              })()}
             </ScrollView>
           </View>
 
@@ -464,6 +600,70 @@ const Home: React.FC = () => {
   );
 };
 
+// --- HELPER FUNCTIONS ---
+
+/**
+ * Find the closest waypoint of a specific type to the user's location
+ */
+const findClosestWaypoint = (
+  waypoints: MapAlert[],
+  type: AlertType,
+  userLat: number | null,
+  userLon: number | null
+): MapAlert | null => {
+  if (!userLat || !userLon) return null;
+
+  const waypointsOfType = waypoints.filter(
+    (wp) => wp.type === type && wp.coords
+  );
+
+  if (waypointsOfType.length === 0) return null;
+
+  let closest: MapAlert | null = null;
+  let minDistance = Infinity;
+
+  waypointsOfType.forEach((wp) => {
+    if (!wp.coords) return;
+    const distance = calculateDistance(
+      userLat,
+      userLon,
+      wp.coords.latitude,
+      wp.coords.longitude
+    );
+    if (distance < minDistance) {
+      minDistance = distance;
+      closest = wp;
+    }
+  });
+
+  return closest;
+};
+
+/**
+ * Get card configuration for a waypoint type
+ */
+const getTypeConfig = (type: AlertType): {
+  iconName: keyof typeof MaterialCommunityIcons.glyphMap;
+  color: string;
+  defaultSubtitle: string;
+} => {
+  const configs: Record<AlertType, {
+    iconName: keyof typeof MaterialCommunityIcons.glyphMap;
+    color: string;
+    defaultSubtitle: string;
+  }> = {
+    hospital: { iconName: 'hospital-box', color: '#ef4444', defaultSubtitle: 'Emergency' },
+    food: { iconName: 'food-drumstick', color: '#f59e0b', defaultSubtitle: 'Rations' },
+    water: { iconName: 'water', color: '#3b82f6', defaultSubtitle: 'Water Source' },
+    shelter: { iconName: 'home-variant', color: '#10b981', defaultSubtitle: 'Shelter' },
+    danger: { iconName: 'alert-circle', color: '#dc2626', defaultSubtitle: 'Danger Zone' },
+    warning: { iconName: 'alert', color: '#f59e0b', defaultSubtitle: 'Warning' },
+    info: { iconName: 'information', color: '#3b82f6', defaultSubtitle: 'Information' },
+    other: { iconName: 'map-marker', color: '#6b7280', defaultSubtitle: 'Location' },
+  };
+  return configs[type] || configs.other;
+};
+
 // --- SOUS-COMPOSANTS ---
 
 const ResourceCard: React.FC<ResourceCardProps> = ({
@@ -531,6 +731,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
+    position: 'relative',
   },
   statusBadge: {
     flexDirection: "row",
@@ -564,6 +765,46 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  offlineBubble: {
+    position: 'absolute',
+    top: 15,
+    right: 20,
+    zIndex: 100,
+  },
+  offlineBubbleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(107, 114, 128, 0.9)',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(156, 163, 175, 0.3)',
+  },
+  offlineIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  offlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#9ca3af',
+  },
+  offlineText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  offlineLogoutButton: {
+    padding: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
   },
   hostBadge: {
     backgroundColor: '#4ade80',

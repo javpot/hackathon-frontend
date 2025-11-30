@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -25,7 +26,17 @@ export default function Index() {
         <StatusBar barStyle="light-content" />
 
         <View style={styles.content}>
-          <Text style={styles.title}>Entrez votre nom</Text>
+          <View style={styles.titleContainer}>
+            <LinearGradient
+              colors={["#4ade80", "#22c55e", "#16a34a"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.titleGradient}
+            >
+              <Text style={styles.appTitle}>Survia</Text>
+            </LinearGradient>
+          </View>
+          <Text style={styles.subtitle}>Pick your survivor nickname</Text>
 
           <TextInput
             style={styles.input}
@@ -66,6 +77,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
   },
+  titleContainer: {
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  titleGradient: {
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 20,
+    shadowColor: "#4ade80",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  appTitle: {
+    color: "#000000",
+    fontSize: 42,
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: 2,
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    color: "#9ca3af",
+    fontSize: 16,
+    fontWeight: "400",
+    marginBottom: 40,
+    textAlign: "center",
+  },
   title: {
     color: "#FFFFFF",
     fontSize: 20,
@@ -89,7 +131,7 @@ const styles = StyleSheet.create({
   confirmButton: {
     width: "100%",
     maxWidth: 320,
-    backgroundColor: "#A84420",
+    backgroundColor: "#4ade80",
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",

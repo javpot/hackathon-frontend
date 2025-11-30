@@ -3,13 +3,13 @@ import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Dimensions,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import AlertMarker from "../../components/AlertMarker";
@@ -26,8 +26,9 @@ export default function MapScreen() {
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const mapRef = useRef<MapView | null>(null);
-  const { alerts, addAlert } = useAlerts();
+  const { alerts, addAlert, removeAlert } = useAlerts();
   const [manualModalVisible, setManualModalVisible] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState<MapAlert | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -107,6 +108,9 @@ export default function MapScreen() {
               key={a.id || index}
               coordinate={a.coords}
               title={a.message || a.type}
+              onPress={() => {
+                setSelectedAlert(a);
+              }}
             >
               <AlertMarker type={a.type} />
             </Marker>
@@ -135,6 +139,37 @@ export default function MapScreen() {
           setManualModalVisible(false);
         }}
       />
+
+      {/* Delete confirmation modal */}
+      {selectedAlert && (
+        <View style={styles.deleteModal}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalTitle}>Delete Waypoint?</Text>
+            <Text style={styles.deleteModalText}>
+              {selectedAlert.message || selectedAlert.type}
+            </Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalButtonCancel]}
+                onPress={() => setSelectedAlert(null)}
+              >
+                <Text style={styles.deleteModalButtonCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalButtonDelete]}
+                onPress={() => {
+                  if (selectedAlert.id) {
+                    removeAlert(selectedAlert.id);
+                    setSelectedAlert(null);
+                  }
+                }}
+              >
+                <Text style={styles.deleteModalButtonDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -186,10 +221,68 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#A84420",
+    backgroundColor: "#4ade80",
     alignItems: "center",
     justifyContent: "center",
     elevation: 4,
     zIndex: 100,
+  },
+  deleteModal: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  deleteModalContent: {
+    backgroundColor: "#171717",
+    borderRadius: 16,
+    padding: 24,
+    width: width * 0.8,
+    borderWidth: 1,
+    borderColor: "#262626",
+  },
+  deleteModalTitle: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  deleteModalText: {
+    color: "#9ca3af",
+    fontSize: 14,
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "flex-end",
+  },
+  deleteModalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  deleteModalButtonCancel: {
+    backgroundColor: "#262626",
+    borderWidth: 1,
+    borderColor: "#333333",
+  },
+  deleteModalButtonDelete: {
+    backgroundColor: "#dc2626",
+  },
+  deleteModalButtonCancelText: {
+    color: "#ffffff",
+    fontWeight: "600",
+  },
+  deleteModalButtonDeleteText: {
+    color: "#ffffff",
+    fontWeight: "600",
   },
 });

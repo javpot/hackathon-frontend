@@ -7,7 +7,7 @@ interface AlertMarkerProps {
     type: AlertType | string; // Allow string fallback for safety
 }
 
-export default function AlertMarker({ type }: AlertMarkerProps) {
+function AlertMarker({ type }: AlertMarkerProps) {
     const color = getPinColor(type as string);
     const icon = getIconName(type as string);
 
@@ -18,8 +18,10 @@ export default function AlertMarker({ type }: AlertMarkerProps) {
     );
 }
 
+export default React.memo(AlertMarker);
+
 // Helper: Get Background Color
-const getPinColor = (type: string) => {
+export const getPinColor = (type: string) => {
     switch (type) {
         case "hospital": return "#f6a1a1ff"; // Pink
         case "food": return "#f59e0b";     // Amber/Orange
@@ -33,7 +35,7 @@ const getPinColor = (type: string) => {
 };
 
 // Helper: Get Icon Name
-const getIconName = (type: string): keyof typeof MaterialCommunityIcons.glyphMap => {
+export const getIconName = (type: string): keyof typeof MaterialCommunityIcons.glyphMap => {
     switch (type) {
         case "hospital": return "hospital-box";
         case "food": return "food-drumstick";

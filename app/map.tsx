@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons"; // Import des icônes
+import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { useRouter } from "expo-router"; // Import pour la navigation
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
@@ -12,17 +12,29 @@ import {
     View,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import AlertModal from "../components/AlertModal";
+import { MapAlert, useAlerts } from "../contexts/AlertContext";
 
 const { width } = Dimensions.get("window");
 
+const getPinColor = (type: string) => {
+    switch (type) {
+        case "hospital": return "#ef4444"; // Red
+        case "food": return "#f59e0b";     // Orange
+        case "water": return "#3b82f6";    // Blue
+        case "shelter": return "#4ade80";  // Green
+        default: return "#8b5cf6";         // Purple
+    }
+};
+
 export default function MapScreen() {
-    const router = useRouter(); // Hook de navigation
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [location, setLocation] = useState<Location.LocationObject | null>(
-        null
-    );
+    const [location, setLocation] = useState<Location.LocationObject | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const mapRef = useRef<MapView | null>(null);
+    const { alerts, addAlert } = useAlerts();
+    const [manualModalVisible, setManualModalVisible] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -34,8 +46,9 @@ export default function MapScreen() {
                     return;
                 }
 
+                // Balanced accuracy is faster and uses less battery
                 const loc = await Location.getCurrentPositionAsync({
-                    accuracy: Location.Accuracy.Highest,
+                    accuracy: Location.Accuracy.Balanced,
                 });
                 setLocation(loc);
             } catch (err: any) {
@@ -59,10 +72,14 @@ export default function MapScreen() {
         return (
             <View style={styles.center}>
                 <Text style={styles.errorText}>{errorMsg}</Text>
+                <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: 'white', textDecorationLine: 'underline' }}>Go Back</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 
+    // Default to Paris if no location, otherwise center on user
     const initialRegion = location
         ? {
             latitude: location.coords.latitude,
@@ -80,107 +97,92 @@ export default function MapScreen() {
     return (
         <View style={styles.container}>
             <MapView
-                ref={(r: MapView | null) => {
-                    mapRef.current = r;
-                }}
+                ref={mapRef}
                 style={styles.map}
                 provider={PROVIDER_GOOGLE}
                 initialRegion={initialRegion}
-                showsUserLocation
-                showsMyLocationButton
-                // Optionnel : style sombre pour la map si tu veux matcher le thème
+                showsUserLocation={true}
+                showsMyLocationButton={true}
                 userInterfaceStyle="dark"
             >
-                {location && (
-                    <Marker
-                        coordinate={{
-                            latitude: location.coords.latitude,
-                            longitude: location.coords.longitude,
-                        }}
-                        title="Vous êtes ici"
-                        description={`Lat: ${location.coords.latitude.toFixed(
-                            6
-                        )}, Lon: ${location.coords.longitude.toFixed(6)}`}
-                        pinColor="#4ade80" // Pin vert
-                    />
+                {/* Render Alert Markers from Context */}
+                {alerts.map((a: MapAlert, index: number) =>
+                    a.coords ? (
+                        <Marker
+                            key={a.id || index}
+                            coordinate={a.coords}
+                            title={a.message || a.type}
+                            pinColor={getPinColor(a.type)}
+                        />
+                    ) : null
                 )}
             </MapView>
 
-            {/* --- BARRE DE NAVIGATION (Similaire à Home) --- */}
+            {/* Floating Action Button (FAB) to Add Alert Manually */}
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() => setManualModalVisible(true)}
+            >
+                <Ionicons name="add" size={28} color="#fff" />
+            </TouchableOpacity>
+
+            <AlertModal
+                visible={manualModalVisible}
+                onRequestClose={() => setManualModalVisible(false)}
+                onSelect={(type) => {
+                    // Use real location if available, otherwise 0,0
+                    const coords = location
+                        ? { latitude: location.coords.latitude, longitude: location.coords.longitude }
+                        : { latitude: 0, longitude: 0 };
+
+                    addAlert({ type, coords, message: type });
+                    setManualModalVisible(false);
+                }}
+            />
+
+            {/* Bottom Navigation Bar */}
             <View style={styles.tabBar}>
                 <TabItem
                     icon="home"
                     label="Home"
-                    onPress={() => router.push("/home")} // Retour vers l'accueil
+                    onPress={() => router.push("/home")}
                 />
                 <TabItem
                     icon="map"
                     label="Map"
-                    isActive={true} // Active l'onglet Map
+                    isActive={true}
                     onPress={() => { }}
                 />
-                <TabItem icon="pricetags" label="Listing" onPress={() => { }} />
+                <TabItem icon="pricetags" label="Listing" onPress={() => router.push("/product")} />
             </View>
         </View>
     );
 }
 
-// --- SOUS-COMPOSANT TAB ITEM ---
-const TabItem = ({
-    icon,
-    label,
-    isActive,
-    onPress,
-}: {
-    icon: any;
-    label: string;
-    isActive?: boolean;
-    onPress?: () => void;
-}) => (
+const TabItem = ({ icon, label, isActive, onPress }: any) => (
     <TouchableOpacity style={styles.tabItem} onPress={onPress}>
         <Ionicons
             name={isActive ? icon : `${icon}-outline`}
             size={24}
             color={isActive ? "#4ade80" : "#6b7280"}
         />
-        <Text
-            style={[styles.tabLabel, { color: isActive ? "#4ade80" : "#6b7280" }]}
-        >
+        <Text style={[styles.tabLabel, { color: isActive ? "#4ade80" : "#6b7280" }]}>
             {label}
         </Text>
     </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#050505",
-    },
-    map: {
-        ...StyleSheet.absoluteFillObject,
-    },
-    center: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#050505",
-    },
-    loadingText: {
-        marginTop: 12,
-        color: "#4ade80",
-    },
-    errorText: {
-        color: "#ff4444",
-        paddingHorizontal: 24,
-        textAlign: "center",
-    },
-
-    // --- STYLES DE LA TOOLBAR ---
+    container: { flex: 1, backgroundColor: "#050505" },
+    map: { ...StyleSheet.absoluteFillObject },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#050505" },
+    loadingText: { marginTop: 12, color: "#4ade80" },
+    errorText: { color: "#ff4444", paddingHorizontal: 24, textAlign: "center" },
     tabBar: {
         position: "absolute",
         bottom: 0,
         width: width,
-        backgroundColor: "rgba(23, 23, 23, 0.95)", // Fond sombre semi-transparent
+        backgroundColor: "rgba(23, 23, 23, 0.95)",
         flexDirection: "row",
         justifyContent: "space-around",
         paddingTop: 15,
@@ -188,12 +190,19 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: "#262626",
     },
-    tabItem: {
+    tabItem: { alignItems: "center", gap: 4 },
+    tabLabel: { fontSize: 10, fontWeight: "500" },
+    fab: {
+        position: "absolute",
+        right: 20,
+        bottom: Platform.OS === "ios" ? 110 : 90,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: "#A84420",
         alignItems: "center",
-        gap: 4,
-    },
-    tabLabel: {
-        fontSize: 10,
-        fontWeight: "500",
+        justifyContent: "center",
+        elevation: 4,
+        zIndex: 100,
     },
 });

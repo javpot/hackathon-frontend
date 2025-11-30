@@ -6,7 +6,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   KeyboardAvoidingView,
@@ -18,8 +18,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
+import { initDB } from "../../database/db";
+import { sendChatMessage } from "../../services/chatService";
+import { stopServer } from "../../services/localServer";
+import { checkHostAlive, sendKeepAlive } from "../../services/localclient";
 
 const { width } = Dimensions.get("window");
 
@@ -163,7 +167,7 @@ const Home: React.FC = () => {
       // Host: Register itself as active and fetch active user count periodically
       const updateHostStatus = async () => {
         try {
-          const { getActiveUserCount: getCount, registerActiveUser } = await import('../services/localServer');
+          const { getActiveUserCount: getCount, registerActiveUser } = await import('../../services/localServer');
           
           // Register host itself as active
           if (vendorID) {
@@ -213,7 +217,7 @@ const Home: React.FC = () => {
           
           if (vendorID) {
             try {
-              const { deleteListingFromHost } = await import('../services/localclient');
+              const { deleteListingFromHost } = await import('../../services/localclient');
               await deleteListingFromHost(vendorID, hostIP, 3001);
               console.log('[Home] ✅ Client listings removed from host');
             } catch (error) {
@@ -235,7 +239,7 @@ const Home: React.FC = () => {
         
         if (vendorID && hostIP) {
           try {
-            const { deleteListingFromHost } = await import('../services/localclient');
+            const { deleteListingFromHost } = await import('../../services/localclient');
             await deleteListingFromHost(vendorID, hostIP, 3000);
           } catch (error) {
             // Ignore cleanup errors
@@ -258,7 +262,7 @@ const Home: React.FC = () => {
           
           if (vendorID) {
             try {
-              const { deleteListingFromHost } = await import('../services/localclient');
+              const { deleteListingFromHost } = await import('../../services/localclient');
               await deleteListingFromHost(vendorID, hostIP, 3001);
               console.log('[Home] ✅ Cleaned up client listings on unmount');
             } catch (error) {
@@ -283,7 +287,7 @@ const Home: React.FC = () => {
         if (hostIP && vendorID) {
           console.log('[Home] 🧹 Cleaning up: Removing all client listings from host');
           try {
-            const { deleteListingFromHost } = await import('../services/localclient');
+            const { deleteListingFromHost } = await import('../../services/localclient');
             await deleteListingFromHost(vendorID, hostIP, 3000);
             console.log('[Home] ✅ Client listings removed from host');
           } catch (error) {

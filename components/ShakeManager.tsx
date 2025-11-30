@@ -1,7 +1,7 @@
 import * as Location from 'expo-location'; // <--- Import this
 import { Accelerometer } from 'expo-sensors';
 import { useEffect, useState } from 'react';
-import { Platform, Vibration } from 'react-native';
+import { NativeModules, Platform, Vibration } from 'react-native';
 import { useAlerts } from '../contexts/AlertContext';
 
 // Threshold: Higher = Harder to trigger
@@ -21,6 +21,12 @@ export default function ShakeManager() {
         // This fixes RCTEventEmitter errors in Release builds with new architecture
         const initTimer = setTimeout(() => {
             try {
+                // Check if native pedometer/sensors module is registered to avoid crash
+                const ped = NativeModules.ExponentPedometer || NativeModules.Pedometer || NativeModules.ExpoPedometer;
+                if (!ped) {
+                    console.warn('Pedometer module not registered, skipping accelerometer');
+                    return;
+                }
                 Accelerometer.setUpdateInterval(100);
                 subscription = Accelerometer.addListener(setData);
             } catch (error) {

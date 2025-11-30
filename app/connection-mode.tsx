@@ -129,20 +129,10 @@ export default function ConnectionModeScreen() {
         setHostIPAddress(gatewayIP);
       }
       
-      // Show platform-specific instructions
-      const message = Platform.OS === 'ios'
-        ? gatewayIP 
-          ? `Server started on port ${actualPort}! Your host IP is: ${gatewayIP}\n\nClients should connect to ${gatewayIP}:${actualPort} after joining your iOS hotspot.`
-          : `Server started on port ${actualPort}! You are now a host.\n\nClients should connect to your iOS hotspot IP (usually 172.20.10.1:${actualPort}).`
-        : gatewayIP 
-          ? `Server started on port ${actualPort}! Your host IP is: ${gatewayIP}\n\nClients should connect to ${gatewayIP}:${actualPort} after joining your hotspot.`
-          : `Server started on port ${actualPort}! You are now a host.\n\nClients should connect to your hotspot IP (usually 192.168.43.1:${actualPort} for Android).`;
-      
-      Alert.alert('Success', message);
       // Navigate to home after a short delay
       setTimeout(() => {
         router.replace('/home');
-      }, 1000);
+      }, 500);
     } catch (error: any) {
       console.error('Error starting server:', error);
       const errorMessage = error?.message || 'Unknown error';
@@ -269,6 +259,27 @@ export default function ConnectionModeScreen() {
     }
   };
 
+  const handleOfflineMode = async () => {
+    try {
+      await AsyncStorage.setItem('connectionMode', 'offline');
+      Alert.alert(
+        'Offline Mode',
+        'You are now in offline mode. The app will work without network connectivity.\n\nYou can still:\n• View your local listings\n• Create new listings\n• Use the chatbot\n\nNetwork features will be disabled.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.replace('/home');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error setting offline mode:', error);
+      Alert.alert('Error', 'Failed to set offline mode');
+    }
+  };
+
   const handleConnectClient = async () => {
     // If IP field is empty, try auto-discovery first
     if (!clientIP.trim()) {
@@ -277,10 +288,9 @@ export default function ConnectionModeScreen() {
         setClientIP(result.hostIP);
         setClientConnected(true);
         await AsyncStorage.setItem('connectionMode', 'client');
-        Alert.alert('Success', `Connected to host at ${result.hostIP}! You are now a client.`);
         setTimeout(() => {
           router.replace('/home');
-        }, 1000);
+        }, 500);
         return;
       } else {
         Alert.alert(
@@ -303,11 +313,10 @@ export default function ConnectionModeScreen() {
       setClientConnected(true);
       await AsyncStorage.setItem('connectionMode', 'client');
       await AsyncStorage.setItem('hostIP', hostIP);
-      Alert.alert('Success', 'Connected to host! You are now a client.');
       // Navigate to home after a short delay
       setTimeout(() => {
         router.replace('/home');
-      }, 1000);
+      }, 500);
     } catch (error: any) {
       console.error('Error connecting to host:', error);
       const errorMessage = error.message || 'Could not connect to host.';
@@ -341,8 +350,24 @@ export default function ConnectionModeScreen() {
       <StatusBar barStyle="light-content" />
       
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Choose Your Role</Text>
-        <Text style={styles.headerSubtitle}>Become a host or connect as a client</Text>
+        <Text style={styles.headerTitle}>Choose Your Mode</Text>
+        <Text style={styles.headerSubtitle}>Select host, client, or offline mode</Text>
+      </View>
+
+      {/* OFFLINE MODE BUTTON - Full Width */}
+      <View style={styles.offlineContainer}>
+        <TouchableOpacity
+          style={styles.offlineButton}
+          onPress={handleOfflineMode}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="cloud-offline" size={24} color="#9ca3af" />
+          <View style={styles.offlineButtonContent}>
+            <Text style={styles.offlineButtonTitle}>Offline Mode</Text>
+            <Text style={styles.offlineButtonSubtitle}>Use the app without network connectivity</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.splitContainer}>
@@ -560,6 +585,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f1724',
   },
+  offlineContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 15,
+  },
+  offlineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#171717',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#262626',
+    gap: 12,
+  },
+  offlineButtonContent: {
+    flex: 1,
+  },
+  offlineButtonTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  offlineButtonSubtitle: {
+    color: '#9ca3af',
+    fontSize: 12,
+  },
   header: {
     padding: 20,
     paddingTop: 10,
@@ -583,6 +636,8 @@ const styles = StyleSheet.create({
   halfContainer: {
     flex: 1,
     padding: 16,
+    minWidth: 0,
+    overflow: 'hidden',
   },
   divider: {
     width: 1,
@@ -604,6 +659,7 @@ const styles = StyleSheet.create({
   },
   scrollContentContainer: {
     paddingBottom: 20,
+    paddingRight: 0,
   },
   instructionText: {
     color: '#ccc',
@@ -619,11 +675,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 16,
     gap: 8,
+    minWidth: 0,
+    flexShrink: 1,
   },
   linkText: {
     color: '#4ade80',
     fontSize: 14,
     fontWeight: '500',
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   stepText: {
     color: '#999',
@@ -646,6 +706,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     marginBottom: 12,
+    width: '100%',
+    minWidth: 0,
   },
   hintText: {
     color: '#666',
@@ -661,6 +723,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
     gap: 8,
+    minWidth: 0,
+    width: '100%',
+    flexShrink: 1,
   },
   hostButton: {
     backgroundColor: '#4ade80',
@@ -678,6 +743,8 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   clientButtonText: {
     color: '#fff',
@@ -742,9 +809,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 16,
+    width: '100%',
   },
   flexButton: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
   },
   scanButton: {
     flexDirection: 'row',
@@ -753,14 +823,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1C1E',
     padding: 12,
     borderRadius: 8,
-    gap: 8,
+    gap: 6,
     borderWidth: 1,
     borderColor: '#3b82f6',
+    minWidth: 0,
+    flexShrink: 1,
   },
   scanButtonText: {
     color: '#3b82f6',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   networksContainer: {
     marginBottom: 16,

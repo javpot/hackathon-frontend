@@ -26,7 +26,7 @@ import {
 import { initDB } from "../database/db";
 import { sendChatMessage } from "../services/chatService";
 import { stopServer } from "../services/localServer";
-import { checkHostAlive } from "../services/localclient";
+import { checkHostAlive, sendKeepAlive } from "../services/localclient";
 
 const { width } = Dimensions.get("window");
 
@@ -51,8 +51,10 @@ const Home: React.FC = () => {
   // --- 1. ÉTATS (STATE) ---
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<'host' | 'client' | null>(null);
+  const [connectionMode, setConnectionMode] = useState<'host' | 'client' | 'offline' | null>(null);
   const [hostIP, setHostIP] = useState<string>('');
+  const [activeUserCount, setActiveUserCount] = useState<number>(0);
+  const [vendorID, setVendorID] = useState<string>('');
   
   // Messages initiaux (Hardcodés pour l'ambiance, mais stockés dans le state)
   const [messages, setMessages] = useState<Message[]>([
@@ -121,15 +123,83 @@ const Home: React.FC = () => {
     const loadConnectionMode = async () => {
       const mode = await AsyncStorage.getItem('connectionMode');
       const ip = await AsyncStorage.getItem('hostIP');
-      if (mode === 'host' || mode === 'client') {
+      const deviceId = await AsyncStorage.getItem('deviceVendorID');
+      if (mode === 'host' || mode === 'client' || mode === 'offline') {
         setConnectionMode(mode);
       }
       if (ip) {
         setHostIP(ip);
       }
+      if (deviceId) {
+        // For host mode, add 'host-' prefix if not present
+        const fullVendorID = mode === 'host' && !deviceId.startsWith('host-') 
+          ? `host-${deviceId}` 
+          : mode === 'client' && !deviceId.startsWith('client-')
+          ? `client-${deviceId}`
+          : deviceId;
+        setVendorID(fullVendorID);
+      }
     };
     loadConnectionMode();
   }, []);
+
+  // Keep-alive and active user count tracking
+  useEffect(() => {
+    if (!connectionMode) {
+      return;
+    }
+
+    let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
+    let userCountInterval: ReturnType<typeof setInterval> | null = null;
+
+    if (connectionMode === 'client' && hostIP && vendorID) {
+      // Client: Send keep-alive packets periodically
+      const sendKeepAlivePacket = async () => {
+        try {
+          const count = await sendKeepAlive(vendorID, hostIP, 3001);
+          console.log(`[Client] 💓 Keep-alive sent, active users: ${count}`);
+        } catch (error) {
+          console.error('[Client] Failed to send keep-alive:', error);
+        }
+      };
+
+      // Send immediately, then every 10 seconds
+      sendKeepAlivePacket();
+      keepAliveInterval = setInterval(sendKeepAlivePacket, 10000);
+    } else if (connectionMode === 'host') {
+      // Host: Register itself as active and fetch active user count periodically
+      const updateHostStatus = async () => {
+        try {
+          const { getActiveUserCount: getCount, registerActiveUser } = await import('../services/localServer');
+          
+          // Register host itself as active
+          if (vendorID) {
+            registerActiveUser(vendorID);
+          }
+          
+          // Get and update the count
+          const count = getCount();
+          setActiveUserCount(count);
+          console.log(`[Host] 👥 Active users: ${count}`);
+        } catch (error) {
+          console.error('[Host] Failed to update host status:', error);
+        }
+      };
+
+      // Update immediately, then every 5 seconds
+      updateHostStatus();
+      userCountInterval = setInterval(updateHostStatus, 5000);
+    }
+
+    return () => {
+      if (keepAliveInterval) {
+        clearInterval(keepAliveInterval);
+      }
+      if (userCountInterval) {
+        clearInterval(userCountInterval);
+      }
+    };
+  }, [connectionMode, hostIP, vendorID]);
 
   // Health check for client mode
   useEffect(() => {
@@ -336,7 +406,7 @@ const Home: React.FC = () => {
                   <FontAwesome5 name="users" size={16} color="#4ade80" />
                   <Text style={styles.statsTitle}>Active</Text>
                 </View>
-                <Text style={styles.bigStatNumber}>67</Text>
+                <Text style={styles.bigStatNumber}>{activeUserCount}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </ScrollView>

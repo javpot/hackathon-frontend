@@ -14,6 +14,20 @@ let currentPort = DEFAULT_PORT; // Track which port we're actually using
 const listingsStore: Map<string, Listing & { clientId: string; serverId: string }> = new Map();
 let listingIdCounter = 1;
 
+// Active users tracking - stores device IDs with their last keep-alive timestamp
+// Format: { [deviceId]: lastKeepAliveTimestamp }
+const activeUsers: Map<string, number> = new Map();
+const KEEP_ALIVE_TIMEOUT = 30000; // 30 seconds - user is considered inactive after this
+
+/**
+ * Register a device as active (for host's own device)
+ */
+export function registerActiveUser(deviceId: string): void {
+  const now = Date.now();
+  activeUsers.set(deviceId, now);
+  console.log(`[Server] ✅ Registered host device as active: ${deviceId} (${getActiveUserCount()} total active users)`);
+}
+
 /**
  * Add a listing directly to the store (for host's own listings)
  */
@@ -251,6 +265,12 @@ export async function startServer(): Promise<void> {
         console.log(`[Server] 📡 Ready to accept connections on port ${portToUse}`);
         console.log(`[Server] 💡 For Android emulator clients: Run "adb reverse tcp:${portToUse} tcp:${portToUse}" on your computer`);
         isRunning = true;
+        
+        // Start periodic cleanup of inactive users
+        const cleanupInterval = setInterval(() => {
+          cleanupInactiveUsers();
+        }, 10000); // Clean up every 10 seconds
+        
         resolve();
       });
     } catch (error) {
@@ -342,6 +362,46 @@ function handleRequest(socket: any, request: string) {
     setTimeout(() => {
       socket.destroy();
     }, 100);
+  } else if (method === 'POST' && path === '/keepalive') {
+    // Keep-alive endpoint - tracks active users
+    try {
+      const keepAliveData = body ? JSON.parse(body) : {};
+      const deviceId = keepAliveData.deviceId || keepAliveData.vendorID || 'unknown';
+      
+      // Update last keep-alive timestamp for this device
+      const now = Date.now();
+      activeUsers.set(deviceId, now);
+      
+      console.log(`[Server] 💓 Keep-alive from device: ${deviceId} (${getActiveUserCount()} active users)`);
+      
+      // Clean up inactive users (older than timeout)
+      cleanupInactiveUsers();
+      
+      const responseBody = JSON.stringify({ success: true, activeUsers: getActiveUserCount() });
+      const response = `HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${responseBody.length}\r\nConnection: close\r\n\r\n${responseBody}`;
+      socket.write(response);
+      setTimeout(() => {
+        socket.destroy();
+      }, 100);
+    } catch (error) {
+      console.error('[Server] Error processing keep-alive:', error);
+      const errorBody = JSON.stringify({ error: 'Invalid request' });
+      const response = `HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: ${errorBody.length}\r\nConnection: close\r\n\r\n${errorBody}`;
+      socket.write(response);
+      setTimeout(() => {
+        socket.destroy();
+      }, 100);
+    }
+  } else if (method === 'GET' && path === '/active-users') {
+    // Get active user count
+    cleanupInactiveUsers();
+    const count = getActiveUserCount();
+    const responseBody = JSON.stringify({ activeUsers: count });
+    const response = `HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${responseBody.length}\r\nConnection: close\r\n\r\n${responseBody}`;
+    socket.write(response);
+    setTimeout(() => {
+      socket.destroy();
+    }, 100);
   } else if (method === 'GET' && path === '/listings') {
     // Get all listings
     const allListings = Array.from(listingsStore.values());
@@ -355,6 +415,46 @@ function handleRequest(socket: any, request: string) {
       console.log(`[Server] Listing details:`, allListings.map(l => ({ vendorID: l.vendorID, clientId: l.clientId, vendorName: l.vendorName })));
     }
     // Close the connection after a short delay to ensure data is sent
+    setTimeout(() => {
+      socket.destroy();
+    }, 100);
+  } else if (method === 'POST' && path === '/keepalive') {
+    // Keep-alive endpoint - tracks active users
+    try {
+      const keepAliveData = body ? JSON.parse(body) : {};
+      const deviceId = keepAliveData.deviceId || keepAliveData.vendorID || 'unknown';
+      
+      // Update last keep-alive timestamp for this device
+      const now = Date.now();
+      activeUsers.set(deviceId, now);
+      
+      console.log(`[Server] 💓 Keep-alive from device: ${deviceId} (${getActiveUserCount()} active users)`);
+      
+      // Clean up inactive users (older than timeout)
+      cleanupInactiveUsers();
+      
+      const responseBody = JSON.stringify({ success: true, activeUsers: getActiveUserCount() });
+      const response = `HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${responseBody.length}\r\nConnection: close\r\n\r\n${responseBody}`;
+      socket.write(response);
+      setTimeout(() => {
+        socket.destroy();
+      }, 100);
+    } catch (error) {
+      console.error('[Server] Error processing keep-alive:', error);
+      const errorBody = JSON.stringify({ error: 'Invalid request' });
+      const response = `HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: ${errorBody.length}\r\nConnection: close\r\n\r\n${errorBody}`;
+      socket.write(response);
+      setTimeout(() => {
+        socket.destroy();
+      }, 100);
+    }
+  } else if (method === 'GET' && path === '/active-users') {
+    // Get active user count
+    cleanupInactiveUsers();
+    const count = getActiveUserCount();
+    const responseBody = JSON.stringify({ activeUsers: count });
+    const response = `HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${responseBody.length}\r\nConnection: close\r\n\r\n${responseBody}`;
+    socket.write(response);
     setTimeout(() => {
       socket.destroy();
     }, 100);
@@ -510,4 +610,39 @@ export function getAllServerListings(): Array<Listing & { clientId: string; serv
 export function clearAllListings(): void {
   listingsStore.clear();
   listingIdCounter = 1;
+}
+
+/**
+ * Clean up inactive users (haven't sent keep-alive in timeout period)
+ */
+function cleanupInactiveUsers(): void {
+  const now = Date.now();
+  const toRemove: string[] = [];
+  
+  for (const [deviceId, lastSeen] of activeUsers.entries()) {
+    if (now - lastSeen > KEEP_ALIVE_TIMEOUT) {
+      toRemove.push(deviceId);
+    }
+  }
+  
+  for (const deviceId of toRemove) {
+    activeUsers.delete(deviceId);
+    console.log(`[Server] 🗑️ Removed inactive user: ${deviceId}`);
+  }
+}
+
+/**
+ * Get the count of active users (users who sent keep-alive recently)
+ */
+export function getActiveUserCount(): number {
+  cleanupInactiveUsers();
+  return activeUsers.size;
+}
+
+/**
+ * Get list of active user device IDs
+ */
+export function getActiveUserIds(): string[] {
+  cleanupInactiveUsers();
+  return Array.from(activeUsers.keys());
 }

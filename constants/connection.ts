@@ -15,5 +15,5 @@ export const STORAGE_KEYS = {
 } as const;
 
 // Connection modes
-export type ConnectionMode = 'host' | 'client' | null;
+export type ConnectionMode = 'host' | 'client' | 'offline' | null;
 

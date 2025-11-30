@@ -4,7 +4,7 @@ const MODE_KEY = 'connection_mode';
 const HOST_IP_KEY = 'hostIP'; // Keep consistent with app usage
 
 /**
- * Get current mode: 'host' | 'client' | null
+ * Get current mode: 'host' | 'client' | 'offline' | null
  */
 export async function getMode(): Promise<string | null> {
   return await AsyncStorage.getItem(MODE_KEY);
@@ -13,7 +13,7 @@ export async function getMode(): Promise<string | null> {
 /**
  * Set mode
  */
-export async function setMode(mode: 'host' | 'client' | null): Promise<void> {
+export async function setMode(mode: 'host' | 'client' | 'offline' | null): Promise<void> {
   if (mode) {
     await AsyncStorage.setItem(MODE_KEY, mode);
   } else {

@@ -35,7 +35,7 @@ export default function ListingsScreen() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [connectionMode, setConnectionMode] = useState<'host' | 'client' | null>(null);
+  const [connectionMode, setConnectionMode] = useState<'host' | 'client' | 'offline' | null>(null);
   const [hostIP, setHostIP] = useState<string>('');
 
   // Form state

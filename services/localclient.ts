@@ -374,6 +374,43 @@ export async function checkHostAlive(
 }
 
 /**
+ * Send keep-alive packet to host server
+ * This helps the host track active users
+ */
+export async function sendKeepAlive(
+  deviceId: string,
+  serverHost: string = '127.0.0.1',
+  serverPort: number = DEFAULT_SERVER_PORT
+): Promise<number> {
+  try {
+    const body = JSON.stringify({ deviceId, vendorID: deviceId });
+    const response = await sendPostRequest('/keepalive', JSON.parse(body), serverHost, serverPort);
+    const parsed = JSON.parse(response);
+    return parsed.activeUsers || 0;
+  } catch (error: any) {
+    console.error('[Client] Error sending keep-alive:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get active user count from host server
+ */
+export async function getActiveUserCount(
+  serverHost: string = '127.0.0.1',
+  serverPort: number = DEFAULT_SERVER_PORT
+): Promise<number> {
+  try {
+    const response = await sendGetRequest('/active-users', serverHost, serverPort);
+    const parsed = JSON.parse(response);
+    return parsed.activeUsers || 0;
+  } catch (error: any) {
+    console.error('[Client] Error getting active user count:', error);
+    return 0;
+  }
+}
+
+/**
  * Poll listings from the host server
  */
 export async function pollListingsFromHost(

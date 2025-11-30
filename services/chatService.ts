@@ -10,15 +10,26 @@ export interface BotResponse {
 }
 
 export const sendChatMessage = async (userMessage: string): Promise<BotResponse> => {
-  // CORRECTION : On utilise un modèle PRÉSENT dans ta liste
   const MODEL_NAME = "gemini-2.0-flash"; 
   
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
 
   try {
-    if (!API_KEY) {
-      throw new Error("Clé API manquante. Vérifie ton fichier .env");
-    }
+    if (!API_KEY) throw new Error("Clé API manquante.");
+
+    // --- LE PROMPT DE SURVIE ---
+    const systemInstruction = `
+      CONTEXTE: Nous sommes en 2097. Le gouvernement a annoncé l'effondrement total (catastrophes naturelles, pandémies, invasions de zombies) dans moins de 24h.
+      TON RÔLE: Tu es "SurvivorAI", l'assistant de survie ultime. Ta mission est de sauver la vie de l'utilisateur.
+      RÈGLES DE RÉPONSE :
+      1. Sois DIRECT, PRATIQUE et CONCIS (urgence vitale).
+      2. Donne des conseils concrets (comment faire un abri, trouver de l'eau, se défendre contre un zombie, premiers secours).
+      3. Sois un partenaire de survie efficace.
+      4. Si l'utilisateur panique, rassure-le avec des actions logiques à entreprendre.
+      
+
+      QUESTION DE L'UTILISATEUR: ${userMessage}
+    `;
 
     const response = await axios.post(
       url,
@@ -26,17 +37,14 @@ export const sendChatMessage = async (userMessage: string): Promise<BotResponse>
         contents: [
           {
             parts: [
-              { text: `Tu es un assistant mobile utile. Réponds de façon courte. Question: ${userMessage}` }
+              { text: systemInstruction }
             ]
           }
         ]
       },
-      {
-        headers: { 'Content-Type': 'application/json' }
-      }
+      { headers: { 'Content-Type': 'application/json' } }
     );
 
-    // Extraction de la réponse
     const aiText = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!aiText) throw new Error("Réponse vide de l'IA");
@@ -49,18 +57,10 @@ export const sendChatMessage = async (userMessage: string): Promise<BotResponse>
     };
 
   } catch (error: any) {
-    // Affiche l'erreur exacte dans le terminal si ça plante encore
-    console.error("--- ERREUR GEMINI ---");
-    if (error.response) {
-        console.error("Status:", error.response.status);
-        console.error("Message:", JSON.stringify(error.response.data, null, 2));
-    } else {
-        console.error("Erreur:", error.message);
-    }
-    
+    console.error("Erreur Gemini:", error.message);
     return {
       id: Date.now().toString(),
-      text: `Erreur (${error.response?.status || 'Connexion'}).`,
+      text: "CONNEXION PERDUE. Je ne peux pas accéder aux données de survie. Restez vigilant.",
       sender: 'bot',
       timestamp: new Date().toISOString(),
     };

@@ -1,13 +1,14 @@
 import React from "react";
 import {
-  StyleSheet,
-  View,
-  Text,
+  ImageStyle,
   SafeAreaView,
-  TouchableOpacity,
   StatusBar,
-  ViewStyle,
+  StyleSheet,
+  Text,
   TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from "react-native";
 // Utilisation de MaterialCommunityIcons pour l'icône de hotspot et de retour
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -125,7 +126,7 @@ const styles = StyleSheet.create({
   icon: {
     marginBottom: 40,
     // L'icône est colorée via la prop 'color' dans le JSX
-  } as ViewStyle,
+  } as ImageStyle,
   title: {
     color: "white",
     fontSize: 22,

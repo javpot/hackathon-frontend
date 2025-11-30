@@ -1,16 +1,15 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { useRouter } from "expo-router";
 import {
+  Keyboard,
   SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
-  View,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Keyboard,
+  View,
 } from "react-native";
 
 export default function Index() {

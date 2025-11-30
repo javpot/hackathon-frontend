@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Keyboard,
@@ -19,6 +19,21 @@ import {
 export default function Index() {
   const [name, setName] = useState("");
   const router = useRouter();
+
+  // Load cached nickname on mount
+  useEffect(() => {
+    const loadCachedNickname = async () => {
+      try {
+        const cachedName = await AsyncStorage.getItem('userName');
+        if (cachedName) {
+          setName(cachedName);
+        }
+      } catch (error) {
+        console.error('Error loading cached nickname:', error);
+      }
+    };
+    loadCachedNickname();
+  }, []);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>

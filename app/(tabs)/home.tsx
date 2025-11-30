@@ -422,22 +422,20 @@ const Home: React.FC = () => {
             </Text>
           </LinearGradient>
 
-          {/* Offline Mode Indicator */}
+          {/* Offline Mode Indicator - Same line as status badge */}
           {connectionMode === 'offline' && (
             <View style={styles.offlineBubble}>
-              <View style={styles.offlineBubbleContent}>
-                <View style={styles.offlineIndicator}>
-                  <View style={styles.offlineDot} />
-                  <Text style={styles.offlineText}>Offline Mode</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.offlineLogoutButton}
-                  onPress={handleLogout}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="log-out-outline" size={16} color="#ffffff" />
-                </TouchableOpacity>
+              <View style={styles.offlineIndicator}>
+                <View style={styles.offlineDot} />
+                <Text style={styles.offlineText}>Offline Mode</Text>
               </View>
+              <TouchableOpacity
+                style={styles.offlineLogoutButton}
+                onPress={handleLogout}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="log-out-outline" size={16} color="#ffffff" />
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -446,9 +444,9 @@ const Home: React.FC = () => {
         <View style={styles.mainContent}>
           {/* Titre */}
           <View style={styles.titleSection}>
-            <Text style={styles.mainTitle}>Near you</Text>
+            <Text style={styles.mainTitle}>Près de vous</Text>
             <Text style={styles.subTitle}>
-              Resources detected in your sector
+              Ressources détectées dans votre secteur
             </Text>
           </View>
 
@@ -470,7 +468,7 @@ const Home: React.FC = () => {
                 >
                   <View style={styles.statsRow}>
                     <FontAwesome5 name="users" size={16} color="#4ade80" />
-                    <Text style={styles.statsTitle}>Active</Text>
+                    <Text style={styles.statsTitle}>Actifs</Text>
                   </View>
                   <Text style={styles.bigStatNumber}>{activeUserCount}</Text>
                 </LinearGradient>
@@ -522,12 +520,54 @@ const Home: React.FC = () => {
                   );
                 };
 
+                const hospitalCard = getClosestWaypointCard('hospital');
+                const foodCard = getClosestWaypointCard('food');
+                const waterCard = getClosestWaypointCard('water');
+                const shelterCard = getClosestWaypointCard('shelter');
+                
+                const hasWaypointCards = hospitalCard || foodCard || waterCard || shelterCard;
+
                 return (
                   <>
-                    {getClosestWaypointCard('hospital')}
-                    {getClosestWaypointCard('food')}
-                    {getClosestWaypointCard('water')}
-                    {getClosestWaypointCard('shelter')}
+                    {hospitalCard}
+                    {foodCard}
+                    {waterCard}
+                    {shelterCard}
+                    
+                    {/* Add Plus Card if no waypoint cards */}
+                    {!hasWaypointCards && (
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={styles.cardHorizontal}
+                        onPress={() => router.push('/map')}
+                      >
+                        <View style={styles.addCardContent}>
+                          <View style={styles.addCardIconContainer}>
+                            <Ionicons name="add" size={24} color="#4ade80" />
+                          </View>
+                          <View style={styles.cardContent}>
+                            <Text style={styles.cardTitle} numberOfLines={2}>Ajouter un point</Text>
+                            <Text style={styles.cardSubtitle} numberOfLines={2}>Appuyez pour ouvrir la carte</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                    
+                    {/* Sync Card */}
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      style={styles.cardHorizontal}
+                    >
+                      <View style={styles.syncCardContent}>
+                        <View style={styles.syncCardIconContainer}>
+                          <Ionicons name="sync-outline" size={20} color="#3b82f6" />
+                        </View>
+                        <View style={styles.cardContent}>
+                          <Text style={styles.cardTitle} numberOfLines={1}>Synchroniser</Text>
+                          <Text style={styles.cardSubtitle} numberOfLines={2}>Bientôt disponible</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
                   </>
                 );
               })()}
@@ -731,7 +771,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    position: 'relative',
+    gap: 12,
   },
   statusBadge: {
     flexDirection: "row",
@@ -767,17 +807,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   offlineBubble: {
-    position: 'absolute',
-    top: 15,
-    right: 20,
-    zIndex: 100,
-  },
-  offlineBubbleContent: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(107, 114, 128, 0.9)',
-    borderRadius: 20,
-    paddingVertical: 8,
+    borderRadius: 50,
+    paddingVertical: 6,
     paddingHorizontal: 12,
     gap: 8,
     borderWidth: 1,
@@ -805,6 +839,34 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  addCardContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  addCardIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  syncCardContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  syncCardIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   hostBadge: {
     backgroundColor: '#4ade80',
@@ -837,14 +899,14 @@ const styles = StyleSheet.create({
 
   // --- HORIZONTAL LIST ---
   horizontalListContainer: {
-    height: 140,
+    height: 160,
   },
   horizontalScrollContent: {
     gap: 12,
     paddingRight: 20,
   },
   cardHorizontal: {
-    width: 140,
+    width: 190,
     height: "100%",
     backgroundColor: "#171717",
     borderRadius: 16,
@@ -867,6 +929,8 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     marginTop: 8,
+    flex: 1,
+    minWidth: 0,
   },
   cardTitle: {
     color: "white",
@@ -876,6 +940,7 @@ const styles = StyleSheet.create({
   cardSubtitle: {
     color: "#6b7280",
     fontSize: 12,
+    flexWrap: 'wrap',
   },
   distanceBadge: {
     backgroundColor: "#262626",

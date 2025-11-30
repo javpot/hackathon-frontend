@@ -57,7 +57,7 @@ export default function ConnectionModeScreen() {
       }
     } catch (error) {
       console.error('Error opening settings:', error);
-      Alert.alert('Error', 'Could not open settings. Please manually enable hotspot in your device settings.');
+      Alert.alert('Erreur', 'Impossible d\'ouvrir les paramètres. Veuillez activer manuellement le point d\'accès dans les paramètres de votre appareil.');
     }
   };
 
@@ -181,7 +181,7 @@ export default function ConnectionModeScreen() {
       if (status !== 'granted') {
         const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
         if (newStatus !== 'granted') {
-          Alert.alert('Permission Required', 'Location permission is required to scan WiFi networks.');
+          Alert.alert('Permission requise', 'La permission de localisation est requise pour scanner les réseaux WiFi.');
           setIsScanning(false);
           return;
         }
@@ -200,7 +200,7 @@ export default function ConnectionModeScreen() {
       setWifiNetworks(uniqueNetworks);
     } catch (error: any) {
       console.error('Error scanning WiFi:', error);
-      Alert.alert('Scan Failed', error.message || 'Could not scan for WiFi networks. Make sure location services are enabled.');
+      Alert.alert('Échec du scan', error.message || 'Impossible de scanner les réseaux WiFi. Assurez-vous que les services de localisation sont activés.');
     } finally {
       setIsScanning(false);
     }
@@ -217,15 +217,15 @@ export default function ConnectionModeScreen() {
       if (isProtected) {
         // For protected networks, we'll just select it and let user enter IP manually
         Alert.alert(
-          'Protected Network',
-          'This network is password protected. Please connect manually in WiFi settings, then enter the host IP address below.',
+          'Réseau protégé',
+          'Ce réseau est protégé par mot de passe. Veuillez vous connecter manuellement dans les paramètres WiFi, puis entrez l\'adresse IP de l\'hôte ci-dessous.',
           [{ text: 'OK' }]
         );
       } else {
         // Try to connect to open network
         try {
           await WifiManager.connectToProtectedSSID(ssid, '', false);
-          Alert.alert('Success', `Connected to ${ssid}. Now enter the host IP address.`);
+          Alert.alert('Succès', `Connecté à ${ssid}. Entrez maintenant l'adresse IP de l'hôte.`);
         } catch (error) {
           // If connection fails, just select it
           console.log('Auto-connect failed, user can connect manually');
@@ -242,18 +242,18 @@ export default function ConnectionModeScreen() {
       const hostIP = await discoverHostIP(3001, 2000);
       if (hostIP) {
         setClientIP(hostIP);
-        Alert.alert('Host Found', `Found host at ${hostIP}. You can now connect.`);
+        Alert.alert('Hôte trouvé', `Hôte trouvé à ${hostIP}. Vous pouvez maintenant vous connecter.`);
       } else {
         Alert.alert(
-          'No Host Found',
+          'Aucun hôte trouvé',
           Platform.OS === 'android'
-            ? 'Could not find host.\n\nFor Emulators:\n1. Make sure host emulator has server running\n2. On your computer, run: "adb reverse tcp:3001 tcp:3001"\n3. Try connecting to 10.0.2.2 manually\n\nFor Real Devices:\n1. Connect to host\'s hotspot\n2. Host IP is usually 192.168.43.1'
-            : 'Could not find host on hotspot network.\n\nMake sure:\n1. You are connected to the host\'s hotspot\n2. Host device has server running\n3. Try entering the IP manually'
+            ? 'Impossible de trouver l\'hôte.\n\nPour les émulateurs :\n1. Assurez-vous que l\'émulateur hôte a le serveur en cours d\'exécution\n2. Sur votre ordinateur, exécutez : "adb reverse tcp:3001 tcp:3001"\n3. Essayez de vous connecter à 10.0.2.2 manuellement\n\nPour les appareils réels :\n1. Connectez-vous au point d\'accès de l\'hôte\n2. L\'IP de l\'hôte est généralement 192.168.43.1'
+            : 'Impossible de trouver l\'hôte sur le réseau du point d\'accès.\n\nAssurez-vous que :\n1. Vous êtes connecté au point d\'accès de l\'hôte\n2. L\'appareil hôte a le serveur en cours d\'exécution\n3. Essayez d\'entrer l\'IP manuellement'
         );
       }
     } catch (error: any) {
       console.error('Error discovering host:', error);
-      Alert.alert('Discovery Failed', error.message || 'Could not discover host.');
+      Alert.alert('Échec de la découverte', error.message || 'Impossible de découvrir l\'hôte.');
     } finally {
       setIsDiscovering(false);
     }
@@ -262,21 +262,11 @@ export default function ConnectionModeScreen() {
   const handleOfflineMode = async () => {
     try {
       await AsyncStorage.setItem('connectionMode', 'offline');
-      Alert.alert(
-        'Offline Mode',
-        'You are now in offline mode. The app will work without network connectivity.\n\nYou can still:\n• View your local listings\n• Create new listings\n• Use the chatbot\n\nNetwork features will be disabled.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              router.replace('/home');
-            }
-          }
-        ]
-      );
+      // Navigate directly without alert
+      router.replace('/home');
     } catch (error) {
       console.error('Error setting offline mode:', error);
-      Alert.alert('Error', 'Failed to set offline mode');
+      Alert.alert('Erreur', 'Échec de l\'activation du mode hors ligne');
     }
   };
 
@@ -294,8 +284,8 @@ export default function ConnectionModeScreen() {
         return;
       } else {
         Alert.alert(
-          'Auto-Connect Failed',
-          result.error || 'Could not automatically find host. Please enter the host IP address manually or use "Discover Host" button.'
+          'Échec de la connexion automatique',
+          result.error || 'Impossible de trouver automatiquement l\'hôte. Veuillez entrer l\'adresse IP de l\'hôte manuellement ou utiliser le bouton "Découvrir l\'hôte".'
         );
         return;
       }
@@ -339,7 +329,7 @@ export default function ConnectionModeScreen() {
         }
       }
       
-      Alert.alert('Connection Failed', userMessage);
+      Alert.alert('Échec de la connexion', userMessage);
     } finally {
       setIsConnecting(false);
     }
@@ -350,8 +340,8 @@ export default function ConnectionModeScreen() {
       <StatusBar barStyle="light-content" />
       
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Choose Your Mode</Text>
-        <Text style={styles.headerSubtitle}>Select host, client, or offline mode</Text>
+        <Text style={styles.headerTitle}>Choisissez votre mode</Text>
+        <Text style={styles.headerSubtitle}>Sélectionnez hôte, client ou mode hors ligne</Text>
       </View>
 
       {/* OFFLINE MODE BUTTON - Full Width */}
@@ -363,8 +353,8 @@ export default function ConnectionModeScreen() {
         >
           <Ionicons name="cloud-offline" size={24} color="#9ca3af" />
           <View style={styles.offlineButtonContent}>
-            <Text style={styles.offlineButtonTitle}>Offline Mode</Text>
-            <Text style={styles.offlineButtonSubtitle}>Use the app without network connectivity</Text>
+            <Text style={styles.offlineButtonTitle}>Mode hors ligne</Text>
+            <Text style={styles.offlineButtonSubtitle}>Utiliser l'application sans connectivité réseau</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
         </TouchableOpacity>
@@ -375,14 +365,14 @@ export default function ConnectionModeScreen() {
         <View style={styles.halfContainer}>
           <View style={styles.sectionHeader}>
             <Ionicons name="server" size={24} color="#4ade80" />
-            <Text style={styles.sectionTitle}>Host</Text>
+            <Text style={styles.sectionTitle}>Hôte</Text>
           </View>
 
           <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
             <Text style={styles.instructionText}>
               {Platform.OS === 'ios'
-                ? 'To become a host, enable your iOS hotspot first, then start the server below.'
-                : 'To become a host, enable your device\'s hotspot first, then start the server below.'}
+                ? 'Pour devenir un hôte, activez d\'abord le point d\'accès iOS, puis démarrez le serveur ci-dessous.'
+                : 'Pour devenir un hôte, activez d\'abord le point d\'accès de votre appareil, puis démarrez le serveur ci-dessous.'}
             </Text>
 
             <TouchableOpacity
@@ -391,13 +381,13 @@ export default function ConnectionModeScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="settings-outline" size={20} color="#4ade80" />
-              <Text style={styles.linkText}>Open Hotspot Settings</Text>
+              <Text style={styles.linkText}>Ouvrir les paramètres du point d'accès</Text>
             </TouchableOpacity>
 
             <Text style={styles.stepText}>
               {Platform.OS === 'ios'
-                ? '1. Enable your iOS hotspot in Settings\n2. Return to this app\n3. Click "Start Host" below\n4. Note your hotspot IP (usually 172.20.10.1)'
-                : '1. Enable your device\'s hotspot\n2. Return to this app\n3. Click "Start Host" below'}
+                ? '1. Activez votre point d\'accès iOS dans Réglages\n2. Revenez à cette application\n3. Cliquez sur "Démarrer l\'hôte" ci-dessous\n4. Notez l\'IP de votre point d\'accès (généralement 172.20.10.1)'
+                : '1. Activez le point d\'accès de votre appareil\n2. Revenez à cette application\n3. Cliquez sur "Démarrer l\'hôte" ci-dessous'}
             </Text>
 
             <TouchableOpacity
@@ -408,7 +398,7 @@ export default function ConnectionModeScreen() {
             >
               <Ionicons name="play" size={20} color="#000" style={styles.buttonIcon} />
               <Text style={styles.actionButtonText}>
-                {hostServerStarted ? 'Server Running' : 'Start Host'}
+                {hostServerStarted ? 'Serveur actif' : 'Démarrer l\'hôte'}
               </Text>
             </TouchableOpacity>
 
@@ -416,15 +406,15 @@ export default function ConnectionModeScreen() {
               <View style={styles.statusContainer}>
                 <View style={styles.statusBadge}>
                   <Ionicons name="checkmark-circle" size={16} color="#4ade80" />
-                  <Text style={styles.statusText}>Server Active</Text>
+                  <Text style={styles.statusText}>Serveur actif</Text>
                 </View>
                 {hostIPAddress && (
                   <View style={styles.ipBadge}>
                     <Ionicons name="information-circle" size={16} color="#4ade80" />
                     <Text style={styles.ipText}>
                       {Platform.OS === 'ios'
-                        ? `iOS Hotspot IP: ${hostIPAddress}\nClients connect to this IP`
-                        : `Host IP: ${hostIPAddress}\nClients connect to this IP`}
+                        ? `IP du point d'accès iOS : ${hostIPAddress}\nLes clients se connectent à cette IP`
+                        : `IP de l'hôte : ${hostIPAddress}\nLes clients se connectent à cette IP`}
                     </Text>
                   </View>
                 )}
@@ -445,7 +435,7 @@ export default function ConnectionModeScreen() {
 
           <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
             <Text style={styles.instructionText}>
-              Connect to the host's hotspot, then discover and connect to the host server.
+              Connectez-vous au point d'accès de l'hôte, puis découvrez et connectez-vous au serveur hôte.
             </Text>
 
             <View style={styles.buttonColumn}>
@@ -458,12 +448,12 @@ export default function ConnectionModeScreen() {
                 {isDiscovering ? (
                   <>
                     <ActivityIndicator size="small" color="#3b82f6" />
-                    <Text style={styles.scanButtonText}>Discovering...</Text>
+                    <Text style={styles.scanButtonText}>Recherche...</Text>
                   </>
                 ) : (
                   <>
                     <Ionicons name="search" size={20} color="#3b82f6" />
-                    <Text style={styles.scanButtonText}>Discover Host</Text>
+                    <Text style={styles.scanButtonText}>Découvrir l'hôte</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -477,12 +467,12 @@ export default function ConnectionModeScreen() {
                 {isScanning ? (
                   <>
                     <ActivityIndicator size="small" color="#3b82f6" />
-                    <Text style={styles.scanButtonText}>Scanning...</Text>
+                    <Text style={styles.scanButtonText}>Analyse...</Text>
                   </>
                 ) : (
                   <>
                     <Ionicons name="wifi" size={20} color="#3b82f6" />
-                    <Text style={styles.scanButtonText}>Scan WiFi</Text>
+                    <Text style={styles.scanButtonText}>Scanner le WiFi</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -490,7 +480,7 @@ export default function ConnectionModeScreen() {
 
             {wifiNetworks.length > 0 && (
               <View style={styles.networksContainer}>
-                <Text style={styles.networksTitle}>Available Networks:</Text>
+                <Text style={styles.networksTitle}>Réseaux disponibles :</Text>
                 {wifiNetworks.map((network, index) => (
                   <TouchableOpacity
                     key={`${network.SSID}-${index}`}
@@ -524,7 +514,7 @@ export default function ConnectionModeScreen() {
               </View>
             )}
 
-            <Text style={styles.label}>Host IP Address</Text>
+            <Text style={styles.label}>Adresse IP de l'hôte</Text>
             <TextInput
               style={styles.input}
               value={clientIP}
@@ -539,11 +529,11 @@ export default function ConnectionModeScreen() {
             <Text style={styles.hintText}>
               {Platform.OS === 'ios'
                 ? selectedNetwork 
-                  ? `Selected: ${selectedNetwork}. Click "Discover Host" or enter the host IP address (usually 172.20.10.1).`
-                  : 'Connect to the host\'s iOS hotspot, then click "Discover Host" or enter the host IP (usually 172.20.10.1).'
+                  ? `Sélectionné : ${selectedNetwork}. Cliquez sur "Découvrir l'hôte" ou entrez l'adresse IP de l'hôte (généralement 172.20.10.1).`
+                  : 'Connectez-vous au point d\'accès iOS de l\'hôte, puis cliquez sur "Découvrir l\'hôte" ou entrez l\'IP de l\'hôte (généralement 172.20.10.1).'
                 : Platform.OS === 'android'
-                  ? 'Connect to the host\'s hotspot, then click "Discover Host" or enter the host IP (usually 192.168.43.1).'
-                  : 'Connect to the host\'s hotspot, then click "Discover Host" or enter the host IP manually.'}
+                  ? 'Connectez-vous au point d\'accès de l\'hôte, puis cliquez sur "Découvrir l\'hôte" ou entrez l\'IP de l\'hôte (généralement 192.168.43.1).'
+                  : 'Connectez-vous au point d\'accès de l\'hôte, puis cliquez sur "Découvrir l\'hôte" ou entrez l\'IP de l\'hôte manuellement.'}
             </Text>
 
             <TouchableOpacity
@@ -555,13 +545,13 @@ export default function ConnectionModeScreen() {
               {isConnecting ? (
                 <>
                   <Ionicons name="hourglass-outline" size={20} color="#fff" style={styles.buttonIcon} />
-                  <Text style={[styles.actionButtonText, styles.clientButtonText]}>Connecting...</Text>
+                  <Text style={[styles.actionButtonText, styles.clientButtonText]}>Connexion...</Text>
                 </>
               ) : (
                 <>
                   <Ionicons name="link" size={20} color="#fff" style={styles.buttonIcon} />
                   <Text style={[styles.actionButtonText, styles.clientButtonText]}>
-                    {clientConnected ? 'Connected' : 'Connect as Client'}
+                    {clientConnected ? 'Connecté' : 'Se connecter en tant que client'}
                   </Text>
                 </>
               )}
@@ -570,7 +560,7 @@ export default function ConnectionModeScreen() {
             {clientConnected && (
               <View style={[styles.statusBadge, styles.clientBadge]}>
                 <Ionicons name="checkmark-circle" size={16} color="#3b82f6" />
-                <Text style={styles.statusText}>Connected to Host</Text>
+                <Text style={styles.statusText}>Connecté à l'hôte</Text>
               </View>
             )}
           </ScrollView>

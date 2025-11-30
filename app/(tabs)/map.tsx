@@ -40,10 +40,21 @@ export default function MapScreen() {
           return;
         }
 
+        // Use lower accuracy for faster loading
         const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
+          accuracy: Location.Accuracy.Low,
         });
         setLocation(loc);
+        
+        // Animate to user location when available
+        if (mapRef.current && loc) {
+          mapRef.current.animateToRegion({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }, 500);
+        }
       } catch (err: any) {
         setErrorMsg(err.message || String(err));
       } finally {
@@ -77,6 +88,14 @@ export default function MapScreen() {
     );
   }
 
+  // Use default region immediately for faster initial render, then update when location is ready
+  const defaultRegion = {
+    latitude: 48.8566,
+    longitude: 2.3522,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  };
+
   const initialRegion = location
     ? {
         latitude: location.coords.latitude,
@@ -84,12 +103,7 @@ export default function MapScreen() {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       }
-    : {
-        latitude: 48.8566,
-        longitude: 2.3522,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      };
+    : defaultRegion;
 
   return (
     <View style={styles.container}>
@@ -97,10 +111,12 @@ export default function MapScreen() {
         ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
-        initialRegion={initialRegion}
+        initialRegion={defaultRegion}
         showsUserLocation={true}
         showsMyLocationButton={true}
         userInterfaceStyle="dark"
+        loadingEnabled={true}
+        mapPadding={{ top: 0, right: 0, bottom: 0, left: 0 }}
       >
         {alerts.map((a: MapAlert, index: number) =>
           a.coords ? (

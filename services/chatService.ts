@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getInventoryForBot } from '../database/db'; // Assure-toi que le chemin est bon
 
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_KEY;
 
@@ -17,16 +18,26 @@ export const sendChatMessage = async (userMessage: string): Promise<BotResponse>
   try {
     if (!API_KEY) throw new Error("Clé API manquante.");
 
-    // --- LE PROMPT DE SURVIE ---
+    // RÉCUPÈRE L'INVENTAIRE DEPUIS LA DB
+    const inventoryText = await getInventoryForBot();
+    
+    console.log("Inventaire envoyé au bot:", inventoryText); 
+
+    // PROMPT DE SURVIE AVEC INVENTAIRE 
     const systemInstruction = `
       CONTEXTE: Nous sommes en 2097. Le gouvernement a annoncé l'effondrement total (catastrophes naturelles, pandémies, invasions de zombies) dans moins de 24h.
       TON RÔLE: Tu es "SurvivorAI", l'assistant de survie ultime. Ta mission est de sauver la vie de l'utilisateur.
+      
+      --- DONNÉES IMPORTANTES ---
+      INVENTAIRE ACTUEL DU SURVIVANT (Ce que l'utilisateur possède) :
+      [ ${inventoryText} ]
+      ---------------------------
+
       RÈGLES DE RÉPONSE :
       1. Sois DIRECT, PRATIQUE et CONCIS (urgence vitale).
-      2. Donne des conseils concrets (comment faire un abri, trouver de l'eau, se défendre contre un zombie, premiers secours).
-      3. Sois un partenaire de survie efficace.
+      2. UTILISE L'INVENTAIRE : Si l'utilisateur a un objet utile pour sa question, dis-lui de l'utiliser ! (Ex: "Utilise tes bandages"). S'il n'a rien, dis-lui quoi chercher.
+      3. Donne des conseils concrets (comment faire un abri, trouver de l'eau, se défendre contre un zombie, premiers secours).
       4. Si l'utilisateur panique, rassure-le avec des actions logiques à entreprendre.
-      
 
       QUESTION DE L'UTILISATEUR: ${userMessage}
     `;

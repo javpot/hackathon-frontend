@@ -139,6 +139,33 @@ export async function deleteRessourceById(id: number) {
     await runSql(sql, [id]);
 }
 
+// Fonction ajoutée pour le Chatbot (RAG)
+export async function getInventoryForBot(): Promise<string> {
+    // On sélectionne uniquement name, quantity et description comme demandé
+    const sql = `SELECT name, quantity, description FROM Ressources;`;
+    
+    try {
+        const result: any = await runSql(sql);
+        const rows = result.rows && result.rows._array ? result.rows._array : [];
+
+        if (rows.length === 0) {
+            return "L'inventaire est vide. Le joueur n'a aucune ressource.";
+        }
+
+        // On formate chaque ligne pour que l'IA comprenne bien
+        // Ex: "5x Bandages (Pour soigner les blessures), 1x Couteau (Arme tranchante)"
+        const formattedList = rows.map((r: any) => 
+            `${r.quantity}x ${r.name} (${r.description})`
+        ).join(', ');
+
+        return formattedList;
+
+    } catch (error) {
+        console.error("Erreur lors de la récupération de l'inventaire pour le bot:", error);
+        return "Erreur d'accès à la base de données.";
+    }
+}
+
 export default {
     initDB,
     addListing,
@@ -152,4 +179,5 @@ export default {
     getRessourceByName,
     deleteRessourceById,
     getAllListingsWithRessources,
+    getInventoryForBot
 };

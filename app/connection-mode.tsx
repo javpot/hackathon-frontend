@@ -126,7 +126,8 @@ export default function ConnectionModeScreen() {
       // Get the host's IP address to display
       const gatewayIP = await getHotspotGatewayIP();
       if (gatewayIP) {
-        setHostIPAddress(gatewayIP);
+        // Display IP with port for easier testing
+        setHostIPAddress(`${gatewayIP}:${actualPort}`);
       }
       
       // Navigate to home after a short delay
@@ -413,8 +414,8 @@ export default function ConnectionModeScreen() {
                     <Ionicons name="information-circle" size={16} color="#4ade80" />
                     <Text style={styles.ipText}>
                       {Platform.OS === 'ios'
-                        ? `IP du point d'accès iOS : ${hostIPAddress}\nLes clients se connectent à cette IP`
-                        : `IP de l'hôte : ${hostIPAddress}\nLes clients se connectent à cette IP`}
+                        ? `IP du point d'accès iOS : ${hostIPAddress}\nLes clients se connectent à cette adresse\n\nPour tester :\n1. Activez le point d'accès personnel\n2. Connectez l'appareil client au point d'accès\n3. Utilisez "Découvrir l'hôte" ou entrez ${hostIPAddress}`
+                        : `IP de l'hôte : ${hostIPAddress}\nLes clients se connectent à cette adresse\n\nPour tester :\n1. Activez le point d'accès\n2. Connectez l'appareil client au point d'accès\n3. Utilisez "Découvrir l'hôte" ou entrez ${hostIPAddress}`}
                     </Text>
                   </View>
                 )}

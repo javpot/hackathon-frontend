@@ -1,72 +1,105 @@
-import React from "react";
-import {
-  StyleSheet,
-  View,
-  Text,
-  SafeAreaView,
-  TouchableOpacity,
-  StatusBar,
-  ViewStyle,
-  TextStyle,
-} from "react-native";
-// Utilisation de MaterialCommunityIcons pour l'icône de hotspot et de retour
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import React, { useEffect, useRef } from "react";
+import {
+  Animated,
+  Dimensions,
+  Easing,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from "react-native";
 
-// Définition de la couleur principale (orange brique/style rouge)
-const THEME_COLOR = "#A84420";
+// Récupération de la largeur de l'écran pour le responsive
+const { width } = Dimensions.get("window");
 
-export default function Emetteur2() {
+// --- Interface pour les props du composant PulseCircle ---
+interface PulseCircleProps {
+  delay: number;
+}
+
+// --- Composant pour un cercle animé individuel ---
+const PulseCircle: React.FC<PulseCircleProps> = ({ delay }) => {
+  // On type explicitement la valeur animée
+  const animValue = useRef<Animated.Value>(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(animValue, {
+        toValue: 1,
+        duration: 2500,
+        easing: Easing.out(Easing.ease),
+        delay: delay,
+        useNativeDriver: true,
+      })
+    );
+
+    animation.start();
+
+    // Cleanup (bonnes pratiques)
+    return () => animation.stop();
+  }, [animValue, delay]);
+
+  const scale = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.5, 2],
+  });
+
+  const opacity = animValue.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0.6, 0.3, 0],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.pulseCircleBase,
+        {
+          transform: [{ scale }],
+          opacity,
+        },
+      ]}
+    />
+  );
+};
+
+// --- Composant Principal ---
+export default function ServerStartScreen() {
   const router = useRouter();
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
       <View style={styles.content}>
-        {/* --- EN-TÊTE (Bouton retour + Barre de progression) --- */}
+        {/* --- EN-TÊTE --- */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} activeOpacity={0.7}>
-            <MaterialCommunityIcons
-              name="chevron-left"
-              size={32}
-              color="white"
-            />
-          </TouchableOpacity>
-
           <View style={styles.progressBarContainer}>
-            {/* Remplissage à environ 30% comme sur l'image */}
             <View style={styles.progressBarFill} />
           </View>
         </View>
 
-        {/* --- CONTENU CENTRAL (Icône + Textes) --- */}
-        <View style={styles.mainContent}>
-          {/* L'icône Hotspot demandée, en gros et en couleur */}
-          <MaterialCommunityIcons
-            name="broadcast" // "broadcast" ou "wifi" ressemble à l'image
-            size={150}
-            color={THEME_COLOR}
-            style={styles.icon}
-          />
+        {/* --- ZONE D'ANIMATION CENTRALE --- */}
+        <View style={styles.animationContainer}>
+          <PulseCircle delay={0} />
+          <PulseCircle delay={600} />
+          <PulseCircle delay={1200} />
 
-          <Text style={styles.title}>
-            Active ton hotspot pour établir ton réseau local.
-          </Text>
-
-          <Text style={styles.subtitle}>C’est ton signal.</Text>
-
-          <Text style={styles.description}>
-            Les survivants à proximité pourront détecter ton réseau et te
-            rejoindre pour échanger des ressources hors-ligne.
-          </Text>
+          {/* Point central fixe */}
+          <View style={styles.centerDot} />
         </View>
 
-        {/* --- BOUTON DU BAS --- */}
-        <View style={styles.footer}>
+        {/* --- BAS DE PAGE --- */}
+        <View style={styles.bottomContainer}>
+          <Text style={styles.statusText}>Demarrage serveur ...</Text>
+
           <TouchableOpacity
             style={styles.actionButton}
             activeOpacity={0.8}
-            onPress={() => router.push("/product")}
+            onPress={() => router.push("/emetteur1")}
           >
             <Text style={styles.actionButtonText}>J'ai activé mon hotspot</Text>
           </TouchableOpacity>
@@ -76,87 +109,76 @@ export default function Emetteur2() {
   );
 }
 
-// --- STYLES ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000", // Fond noir
+    backgroundColor: "#000000",
   } as ViewStyle,
   content: {
     flex: 1,
-    justifyContent: "space-between", // Écarte le haut, le milieu et le bas
-    paddingHorizontal: 24,
-    paddingBottom: 20,
+    justifyContent: "space-between",
+    padding: 20,
   } as ViewStyle,
-
-  // Header Styles
   header: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 10,
-    marginBottom: 20,
   } as ViewStyle,
   backButton: {
+    padding: 10,
     marginRight: 15,
-    // Ajustement négatif pour aligner visuellement la flèche
-    marginLeft: -10,
   } as ViewStyle,
+  backIcon: {
+    color: "white",
+    fontSize: 24,
+    fontWeight: "300", // Correspond à '300' | '400' etc.
+  },
   progressBarContainer: {
     flex: 1,
-    height: 8,
-    backgroundColor: "#333333", // Gris foncé
-    borderRadius: 4,
+    height: 12,
+    backgroundColor: "#333333",
+    borderRadius: 6,
     overflow: "hidden",
   } as ViewStyle,
   progressBarFill: {
-    width: "30%", // Progression approximative de l'image
+    width: "35%",
     height: "100%",
-    backgroundColor: THEME_COLOR,
-    borderRadius: 4,
+    backgroundColor: "#A84420",
+    borderRadius: 6,
   } as ViewStyle,
-
-  // Main Content Styles
-  mainContent: {
+  animationContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingBottom: 40, // Un peu d'espace avant le bouton du bas
   } as ViewStyle,
-  icon: {
-    marginBottom: 40,
-    // L'icône est colorée via la prop 'color' dans le JSX
+  pulseCircleBase: {
+    position: "absolute",
+    width: width * 0.6,
+    height: width * 0.6,
+    borderRadius: (width * 0.6) / 2,
+    backgroundColor: "#ff4d4d",
+  } as ViewStyle, // Note: Animated.View accepte ViewStyle
+  centerDot: {
+    position: "absolute",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#ff0000",
+    zIndex: 10,
   } as ViewStyle,
-  title: {
-    color: "white",
-    fontSize: 22,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 30,
-    lineHeight: 30,
-  } as TextStyle,
-  subtitle: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "600",
-    textAlign: "center",
-    marginBottom: 20,
-  } as TextStyle,
-  description: {
-    color: "#CCCCCC", // Blanc légèrement grisé pour la description
-    fontSize: 17,
-    textAlign: "center",
-    lineHeight: 24,
-    paddingHorizontal: 10,
-  } as TextStyle,
-
-  // Footer/Button Styles
-  footer: {
-    width: "100%",
+  bottomContainer: {
     alignItems: "center",
+    marginBottom: 10,
   } as ViewStyle,
+  statusText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "500",
+    marginBottom: 30,
+  },
   actionButton: {
     width: "100%",
-    backgroundColor: THEME_COLOR,
+    backgroundColor: "#A84420",
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
@@ -165,6 +187,6 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: "700",
-  } as TextStyle,
+    fontWeight: "600",
+  },
 });

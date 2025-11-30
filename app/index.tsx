@@ -1,13 +1,13 @@
+import { useRouter } from "expo-router";
 import React from "react";
 import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
 
 export default function Index() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function Index() {
           <TouchableOpacity
             style={styles.primaryButton}
             activeOpacity={0.8}
-            onPress={() => router.push("/emetteur2")}
+            onPress={() => router.push("/test")}
           >
             <Text style={styles.primaryButtonText}>Émetteur</Text>
           </TouchableOpacity>

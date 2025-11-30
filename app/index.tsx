@@ -81,7 +81,7 @@ export default function Index() {
               onPress={async () => {
                 if (name.trim()) {
                   await AsyncStorage.setItem('userName', name.trim());
-                  router.push("/connection-mode");
+                  router.push("/(tabs)/home");
                 } else {
                   Alert.alert('Error', 'Please enter your name');
                 }

@@ -23,7 +23,6 @@ import {
 } from "react-native";
 import { AlertType, MapAlert, useAlerts } from "../../contexts/AlertContext";
 import { sendChatMessage } from "../../services/chatService";
-import { stopServer } from "../../services/localServer";
 import { checkHostAlive, sendKeepAlive } from "../../services/localclient";
 import { calculateDistance, formatDistance } from "../../utils/distance";
 
@@ -113,26 +112,34 @@ const Home: React.FC = () => {
   useEffect(() => {
     // Database initialization removed - no longer needed for trade listings
 
-    // Load connection mode and host IP
+    // Load connection mode and host IP - default to client mode
     const loadConnectionMode = async () => {
-      const mode = await AsyncStorage.getItem('connectionMode');
+      let mode = await AsyncStorage.getItem('connectionMode');
       const ip = await AsyncStorage.getItem('hostIP');
-      const deviceId = await AsyncStorage.getItem('deviceVendorID');
-      if (mode === 'host' || mode === 'client' || mode === 'offline') {
-        setConnectionMode(mode);
+      let deviceId = await AsyncStorage.getItem('deviceVendorID');
+      
+      // Default to client mode if not set
+      if (!mode) {
+        mode = 'client';
+        await AsyncStorage.setItem('connectionMode', 'client');
       }
+      
+      setConnectionMode(mode as 'client');
+      
+      // Default host IP if not set (can be configured later)
       if (ip) {
         setHostIP(ip);
       }
-      if (deviceId) {
-        // For host mode, add 'host-' prefix if not present
-        const fullVendorID = mode === 'host' && !deviceId.startsWith('host-') 
-          ? `host-${deviceId}` 
-          : mode === 'client' && !deviceId.startsWith('client-')
-          ? `client-${deviceId}`
-          : deviceId;
-        setVendorID(fullVendorID);
+      
+      // Generate device ID if not exists
+      if (!deviceId) {
+        deviceId = `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        await AsyncStorage.setItem('deviceVendorID', deviceId);
       }
+      
+      // Ensure client prefix
+      const fullVendorID = deviceId.startsWith('client-') ? deviceId : `client-${deviceId}`;
+      setVendorID(fullVendorID);
     };
     loadConnectionMode();
 

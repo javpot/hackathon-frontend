@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Keyboard,
+  Platform,
   SafeAreaView,
   StatusBar,
   StyleSheet,

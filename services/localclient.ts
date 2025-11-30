@@ -27,6 +27,8 @@ async function sendHttpRequest(
     method,
     headers: {
       'Content-Type': 'application/json',
+      // Ngrok free tier requires these headers to bypass warning page
+      'ngrok-skip-browser-warning': 'true',
     },
     signal: AbortSignal.timeout(DEFAULT_TIMEOUT),
   };

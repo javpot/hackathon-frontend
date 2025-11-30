@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   Dimensions,
+  KeyboardAvoidingView,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -34,127 +35,144 @@ const Home: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#050505" />
-
-      {/* --- HEADER --- */}
-      <View style={styles.headerContainer}>
-        <LinearGradient
-          colors={["#15803d", "#4ade80"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.statusBadge}
-        >
-          <MaterialCommunityIcons name="heart-pulse" size={20} color="white" />
-          <Text style={styles.statusText}>SURVIVABILITY INDEX: HIGH</Text>
-        </LinearGradient>
-      </View>
-
-      {/* --- CONTENT (FIXED LAYOUT) --- */}
-      <View style={styles.mainContent}>
-        {/* Titre */}
-        <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>Near you</Text>
-          <Text style={styles.subTitle}>Resources detected in your sector</Text>
-        </View>
-
-        {/* --- HORIZONTAL CARDS --- */}
-        <View style={styles.horizontalListContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? -90 : 0}
+      >
+        {/* --- HEADER --- */}
+        <View style={styles.headerContainer}>
+          <LinearGradient
+            colors={["#15803d", "#4ade80"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.statusBadge}
           >
-            {/* Hôpital */}
-            <ResourceCard
-              title="St. Mary's"
-              subtitle="Emergency"
-              distance="4km"
-              iconName="hospital-box"
-              color="#ef4444"
+            <MaterialCommunityIcons
+              name="heart-pulse"
+              size={20}
+              color="white"
             />
-
-            {/* Banque Alimentaire */}
-            <ResourceCard
-              title="Sector 7 Food"
-              subtitle="Rations"
-              distance="4km"
-              iconName="food-drumstick"
-              color="#f59e0b"
-            />
-
-            {/* Stats Card */}
-            <TouchableOpacity activeOpacity={0.8} style={styles.cardHorizontal}>
-              <LinearGradient
-                colors={["#1f2937", "#111827"]}
-                style={styles.statsGradient}
-              >
-                <View style={styles.statsRow}>
-                  <FontAwesome5 name="users" size={16} color="#4ade80" />
-                  <Text style={styles.statsTitle}>Active</Text>
-                </View>
-                <Text style={styles.bigStatNumber}>67</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </ScrollView>
+            <Text style={styles.statusText}>SURVIVABILITY INDEX: HIGH</Text>
+          </LinearGradient>
         </View>
 
-        {/* --- CHATBOT SECTION --- */}
-        <View style={styles.chatWrapper}>
-          <View style={styles.chatContainer}>
-            {/* Header Chat */}
-            <View style={styles.chatHeader}>
-              <View style={styles.chatHeaderLeft}>
-                <View style={styles.pulseDot} />
-                <Text style={styles.chatTitle}>SURVIVAL AI LINK</Text>
-              </View>
-              <MaterialCommunityIcons
-                name="robot-outline"
-                size={20}
-                color="#4ade80"
-              />
-            </View>
+        {/* --- CONTENT (FIXED LAYOUT) --- */}
+        <View style={styles.mainContent}>
+          {/* Titre */}
+          <View style={styles.titleSection}>
+            <Text style={styles.mainTitle}>Near you</Text>
+            <Text style={styles.subTitle}>
+              Resources detected in your sector
+            </Text>
+          </View>
 
-            {/* Messages */}
+          {/* --- HORIZONTAL CARDS --- */}
+          <View style={styles.horizontalListContainer}>
             <ScrollView
-              style={styles.chatBody}
-              showsVerticalScrollIndicator={false}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScrollContent}
             >
-              <View style={styles.aiMessageRow}>
-                <View style={styles.aiAvatar}>
-                  <Text style={styles.aiAvatarText}>AI</Text>
-                </View>
-                <View style={styles.messageBubbleAi}>
-                  <Text style={styles.messageTextAi}>
-                    ⚠️ Weather alert: Acid rain approaching Sector 4.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.aiMessageRow}>
-                <View style={styles.aiAvatar}>
-                  <Text style={styles.aiAvatarText}>AI</Text>
-                </View>
-                <View style={styles.messageBubbleAi}>
-                  <Text style={styles.messageTextAi}>
-                    Water source detected 2km North. Purify before consumption.
-                  </Text>
-                </View>
-              </View>
-            </ScrollView>
-
-            {/* Input Zone */}
-            <View style={styles.inputArea}>
-              <TextInput
-                style={styles.inputField}
-                placeholder="Ask for guidance..."
-                placeholderTextColor="#525252"
+              {/* Hôpital */}
+              <ResourceCard
+                title="St. Mary's"
+                subtitle="Emergency"
+                distance="4km"
+                iconName="hospital-box"
+                color="#ef4444"
               />
-              <TouchableOpacity style={styles.sendButton}>
-                <Ionicons name="arrow-up" size={18} color="black" />
+
+              {/* Banque Alimentaire */}
+              <ResourceCard
+                title="Sector 7 Food"
+                subtitle="Rations"
+                distance="4km"
+                iconName="food-drumstick"
+                color="#f59e0b"
+              />
+
+              {/* Stats Card */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.cardHorizontal}
+              >
+                <LinearGradient
+                  colors={["#1f2937", "#111827"]}
+                  style={styles.statsGradient}
+                >
+                  <View style={styles.statsRow}>
+                    <FontAwesome5 name="users" size={16} color="#4ade80" />
+                    <Text style={styles.statsTitle}>Active</Text>
+                  </View>
+                  <Text style={styles.bigStatNumber}>67</Text>
+                </LinearGradient>
               </TouchableOpacity>
+            </ScrollView>
+          </View>
+
+          {/* --- CHATBOT SECTION --- */}
+          <View style={styles.chatWrapper}>
+            <View style={styles.chatContainer}>
+              {/* Header Chat */}
+              <View style={styles.chatHeader}>
+                <View style={styles.chatHeaderLeft}>
+                  <View style={styles.pulseDot} />
+                  <Text style={styles.chatTitle}>SURVIVAL AI LINK</Text>
+                </View>
+                <MaterialCommunityIcons
+                  name="robot-outline"
+                  size={20}
+                  color="#4ade80"
+                />
+              </View>
+
+              {/* Messages */}
+              <ScrollView
+                style={styles.chatBody}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.aiMessageRow}>
+                  <View style={styles.aiAvatar}>
+                    <Text style={styles.aiAvatarText}>AI</Text>
+                  </View>
+                  <View style={styles.messageBubbleAi}>
+                    <Text style={styles.messageTextAi}>
+                      ⚠️ Weather alert: Acid rain approaching Sector 4.
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.aiMessageRow}>
+                  <View style={styles.aiAvatar}>
+                    <Text style={styles.aiAvatarText}>AI</Text>
+                  </View>
+                  <View style={styles.messageBubbleAi}>
+                    <Text style={styles.messageTextAi}>
+                      Water source detected 2km North. Purify before
+                      consumption.
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Input Zone */}
+              <View style={styles.inputArea}>
+                <TextInput
+                  style={styles.inputField}
+                  placeholder="Ask for guidance..."
+                  placeholderTextColor="#525252"
+                />
+                <TouchableOpacity style={styles.sendButton}>
+                  <Ionicons name="arrow-up" size={18} color="black" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
+          {/* Spacer for TabBar */}
+          <View style={{ height: 90 }} />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -218,7 +236,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#050505",
-    paddingBottom: 90,
   },
   headerContainer: {
     alignItems: "center",
@@ -336,7 +353,6 @@ const styles = StyleSheet.create({
   chatWrapper: {
     flex: 1,
     marginTop: 30, // J'ai ajouté de l'espace ici (30px)
-    marginBottom: Platform.OS === "ios" ? 90 : 70,
   },
   chatContainer: {
     flex: 1,

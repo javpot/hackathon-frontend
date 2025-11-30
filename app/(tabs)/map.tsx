@@ -11,7 +11,7 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, UrlTile } from "react-native-maps";
 import AlertMarker from "../../components/AlertMarker";
 import AlertModal from "../../components/AlertModal";
 import { MapAlert, useAlerts } from "../../contexts/AlertContext";
@@ -110,7 +110,6 @@ export default function MapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
         initialRegion={initialRegion}
         showsUserLocation={true}
         showsMyLocationButton={true}
@@ -129,6 +128,14 @@ export default function MapScreen() {
           }
         }}
       >
+        {/* CartoDB tiles for offline support */}
+        <UrlTile
+          urlTemplate="https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+          maximumZ={19}
+          flipY={false}
+          tileSize={256}
+        />
+        
         {alerts.map((a: MapAlert, index: number) =>
           a.coords ? (
             <Marker

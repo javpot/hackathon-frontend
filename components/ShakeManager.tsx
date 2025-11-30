@@ -64,7 +64,7 @@ export default function ShakeManager() {
 
                 console.log("SHAKE DETECTED! Sending SOS alert.");
                 Vibration.vibrate(500);
-                Alert.alert("SOS SENT", "Broadcasting your location...");
+                // Alert.alert("SOS SENT", "Broadcasting your location...");
 
                 // Call the function to get location and send
                 getLocationAndSendAlert();

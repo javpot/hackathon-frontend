@@ -4,6 +4,7 @@ import {
     MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
     Dimensions,
@@ -13,13 +14,13 @@ import {
     StatusBar,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
 
 const { width } = Dimensions.get("window");
 
-// Définition des types pour les props
 interface ResourceCardProps {
     title: string;
     subtitle: string;
@@ -29,12 +30,12 @@ interface ResourceCardProps {
 }
 
 const Home: React.FC = () => {
+    const router = useRouter();
     return (
         <SafeAreaView style={styles.container}>
-            {/* Barre de statut noire pour fondre avec le design */}
             <StatusBar barStyle="light-content" backgroundColor="#050505" />
 
-            {/* --- HEADER (Badge de Survie) --- */}
+            {/* --- HEADER --- */}
             <View style={styles.headerContainer}>
                 <LinearGradient
                     colors={["#15803d", "#4ade80"]}
@@ -47,66 +48,119 @@ const Home: React.FC = () => {
                 </LinearGradient>
             </View>
 
-            {/* --- SCROLLABLE CONTENT --- */}
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Titre de la section */}
+            {/* --- CONTENT (FIXED LAYOUT) --- */}
+            <View style={styles.mainContent}>
+                {/* Titre */}
                 <View style={styles.titleSection}>
                     <Text style={styles.mainTitle}>Near you</Text>
                     <Text style={styles.subTitle}>Resources detected in your sector</Text>
                 </View>
 
-                {/* Liste des cartes */}
-                <View style={styles.cardContainer}>
-                    {/* Carte Hôpital */}
-                    <ResourceCard
-                        title="St. Mary's Hospital"
-                        subtitle="Emergency Care & Meds"
-                        distance="4km"
-                        iconName="hospital-box"
-                        color="#ef4444" // Rouge
-                    />
-
-                    {/* Carte Banque Alimentaire */}
-                    <ResourceCard
-                        title="Sector 7 Food Bank"
-                        subtitle="Rations, Water & Supplies"
-                        distance="4km"
-                        iconName="food-drumstick"
-                        color="#f59e0b" // Orange
-                    />
-
-                    {/* Carte Joueurs Actifs (Style Spécial) */}
-                    <LinearGradient
-                        colors={["#1f2937", "#111827"]}
-                        style={styles.statsCard}
+                {/* --- HORIZONTAL CARDS --- */}
+                <View style={styles.horizontalListContainer}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.horizontalScrollContent}
                     >
-                        <View style={styles.statsContent}>
-                            <View
-                                style={[
-                                    styles.iconContainer,
-                                    { backgroundColor: "rgba(74, 222, 128, 0.15)" },
-                                ]}
-                            >
-                                <FontAwesome5 name="users" size={20} color="#4ade80" />
-                            </View>
-                            <View>
-                                <Text style={styles.cardTitle}>Active Players</Text>
-                                <Text style={styles.cardSubtitle}>In a 10km radius</Text>
-                            </View>
-                        </View>
-                        <Text style={styles.bigStatNumber}>67</Text>
-                    </LinearGradient>
-                </View>
-            </ScrollView>
+                        {/* Hôpital */}
+                        <ResourceCard
+                            title="St. Mary's"
+                            subtitle="Emergency"
+                            distance="4km"
+                            iconName="hospital-box"
+                            color="#ef4444"
+                        />
 
-            {/* --- BOTTOM NAVIGATION BAR --- */}
+                        {/* Banque Alimentaire */}
+                        <ResourceCard
+                            title="Sector 7 Food"
+                            subtitle="Rations"
+                            distance="4km"
+                            iconName="food-drumstick"
+                            color="#f59e0b"
+                        />
+
+                        {/* Stats Card */}
+                        <TouchableOpacity activeOpacity={0.8} style={styles.cardHorizontal}>
+                            <LinearGradient
+                                colors={["#1f2937", "#111827"]}
+                                style={styles.statsGradient}
+                            >
+                                <View style={styles.statsRow}>
+                                    <FontAwesome5 name="users" size={16} color="#4ade80" />
+                                    <Text style={styles.statsTitle}>Active</Text>
+                                </View>
+                                <Text style={styles.bigStatNumber}>67</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+
+                {/* --- CHATBOT SECTION --- */}
+                <View style={styles.chatWrapper}>
+                    <View style={styles.chatContainer}>
+                        {/* Header Chat */}
+                        <View style={styles.chatHeader}>
+                            <View style={styles.chatHeaderLeft}>
+                                <View style={styles.pulseDot} />
+                                <Text style={styles.chatTitle}>SURVIVAL AI LINK</Text>
+                            </View>
+                            <MaterialCommunityIcons
+                                name="robot-outline"
+                                size={20}
+                                color="#4ade80"
+                            />
+                        </View>
+
+                        {/* Messages */}
+                        <ScrollView
+                            style={styles.chatBody}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <View style={styles.aiMessageRow}>
+                                <View style={styles.aiAvatar}>
+                                    <Text style={styles.aiAvatarText}>AI</Text>
+                                </View>
+                                <View style={styles.messageBubbleAi}>
+                                    <Text style={styles.messageTextAi}>
+                                        ⚠️ Weather alert: Acid rain approaching Sector 4.
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.aiMessageRow}>
+                                <View style={styles.aiAvatar}>
+                                    <Text style={styles.aiAvatarText}>AI</Text>
+                                </View>
+                                <View style={styles.messageBubbleAi}>
+                                    <Text style={styles.messageTextAi}>
+                                        Water source detected 2km North. Purify before consumption.
+                                    </Text>
+                                </View>
+                            </View>
+                        </ScrollView>
+
+                        {/* Input Zone */}
+                        <View style={styles.inputArea}>
+                            <TextInput
+                                style={styles.inputField}
+                                placeholder="Ask for guidance..."
+                                placeholderTextColor="#525252"
+                            />
+                            <TouchableOpacity style={styles.sendButton}>
+                                <Ionicons name="arrow-up" size={18} color="black" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </View>
+
+            {/* --- BARRE DE NAVIGATION --- */}
             <View style={styles.tabBar}>
-                <TabItem icon="home" label="Home" isActive />
-                <TabItem icon="map" label="Map" />
-                <TabItem icon="pricetags" label="Listing" />
+                <TabItem icon="home" label="Home" isActive onPress={() => { }} />
+                <TabItem icon="map" label="Map" onPress={() => router.push("/map")} />
+                <TabItem icon="pricetags" label="Listing" onPress={() => { }} />
             </View>
         </SafeAreaView>
     );
@@ -121,32 +175,37 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
     iconName,
     color,
 }) => (
-    <TouchableOpacity activeOpacity={0.8} style={styles.card}>
-        <View style={styles.cardRow}>
+    <TouchableOpacity activeOpacity={0.8} style={styles.cardHorizontal}>
+        <View style={styles.cardHeader}>
             <View style={[styles.iconContainer, { backgroundColor: `${color}20` }]}>
-                <MaterialCommunityIcons name={iconName} size={24} color={color} />
+                <MaterialCommunityIcons name={iconName} size={20} color={color} />
             </View>
-            <View style={styles.textGroup}>
-                <Text style={styles.cardTitle}>{title}</Text>
-                <Text style={styles.cardSubtitle}>{subtitle}</Text>
+            <View style={styles.distanceBadge}>
+                <Text style={styles.distanceText}>{distance}</Text>
             </View>
         </View>
-        <View style={styles.distanceBadge}>
-            <Text style={styles.distanceText}>{distance}</Text>
+        <View style={styles.cardContent}>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+                {title}
+            </Text>
+            <Text style={styles.cardSubtitle} numberOfLines={1}>
+                {subtitle}
+            </Text>
         </View>
     </TouchableOpacity>
 );
-
 const TabItem = ({
     icon,
     label,
     isActive,
+    onPress,
 }: {
     icon: any;
     label: string;
     isActive?: boolean;
+    onPress?: () => void;
 }) => (
-    <TouchableOpacity style={styles.tabItem}>
+    <TouchableOpacity style={styles.tabItem} onPress={onPress}>
         <Ionicons
             name={isActive ? icon : `${icon}-outline`}
             size={24}
@@ -169,134 +228,230 @@ const styles = StyleSheet.create({
     },
     headerContainer: {
         alignItems: "center",
-        paddingVertical: 20,
+        paddingVertical: 15,
     },
     statusBadge: {
         flexDirection: "row",
         alignItems: "center",
-        paddingVertical: 8,
-        paddingHorizontal: 24,
+        paddingVertical: 6,
+        paddingHorizontal: 16,
         borderRadius: 50,
-        gap: 8,
-        shadowColor: "#4ade80",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 12,
-        elevation: 8,
+        gap: 6,
     },
     statusText: {
         color: "#ffffff",
         fontWeight: "800",
-        fontSize: 13,
-        letterSpacing: 1.2,
-        textTransform: "uppercase",
+        fontSize: 12,
+        letterSpacing: 1,
     },
-    scrollContent: {
+    mainContent: {
+        flex: 1,
         paddingHorizontal: 20,
-        paddingBottom: 130, // Espace extra en bas pour ne pas cacher la dernière carte sous la barre
     },
     titleSection: {
-        marginBottom: 24,
-        marginTop: 10,
+        marginBottom: 15,
     },
     mainTitle: {
-        fontSize: 34,
+        fontSize: 28,
         fontWeight: "bold",
         color: "#ffffff",
     },
     subTitle: {
-        fontSize: 15,
+        fontSize: 14,
         color: "#9ca3af",
-        marginTop: 4,
     },
-    cardContainer: {
-        gap: 16,
+
+    // --- HORIZONTAL LIST ---
+    horizontalListContainer: {
+        height: 140,
+        // marginBottom: 10, // J'ai retiré le marginBottom ici pour tout gérer dans chatWrapper
     },
-    // Style Carte Ressource
-    card: {
+    horizontalScrollContent: {
+        gap: 12,
+        paddingRight: 20,
+    },
+    cardHorizontal: {
+        width: 140,
+        height: "100%",
         backgroundColor: "#171717",
-        borderRadius: 20,
-        padding: 16,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
+        borderRadius: 16,
+        padding: 12,
         borderWidth: 1,
         borderColor: "#262626",
+        justifyContent: "space-between",
     },
-    cardRow: {
+    cardHeader: {
         flexDirection: "row",
-        alignItems: "center",
-        gap: 16,
+        justifyContent: "space-between",
+        alignItems: "flex-start",
     },
     iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
+        width: 36,
+        height: 36,
+        borderRadius: 10,
         justifyContent: "center",
         alignItems: "center",
     },
-    textGroup: {
-        justifyContent: "center",
+    cardContent: {
+        marginTop: 8,
     },
     cardTitle: {
         color: "white",
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: "700",
     },
     cardSubtitle: {
         color: "#6b7280",
-        fontSize: 13,
-        marginTop: 2,
+        fontSize: 12,
     },
     distanceBadge: {
         backgroundColor: "#262626",
-        paddingVertical: 6,
-        paddingHorizontal: 10,
-        borderRadius: 8,
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 6,
     },
     distanceText: {
         color: "#d1d5db",
+        fontSize: 10,
+        fontWeight: "bold",
+    },
+    statsGradient: {
+        flex: 1,
+        borderRadius: 16,
+        margin: -12,
+        padding: 12,
+        justifyContent: "space-between",
+    },
+    statsRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    statsTitle: {
+        color: "#9ca3af",
         fontSize: 12,
         fontWeight: "600",
     },
-    // Style Carte Stats
-    statsCard: {
+    bigStatNumber: {
+        fontSize: 32,
+        fontWeight: "bold",
+        color: "#4ade80",
+    },
+
+    // --- CHATBOT WRAPPER (MODIFIÉ) ---
+    chatWrapper: {
+        flex: 1,
+        marginTop: 30, // J'ai ajouté de l'espace ici (30px)
+        marginBottom: Platform.OS === "ios" ? 90 : 70,
+    },
+    chatContainer: {
+        flex: 1,
+        backgroundColor: "#0a0a0a",
         borderRadius: 20,
-        padding: 20,
+        borderWidth: 1,
+        borderColor: "#333",
+        padding: 16,
+    },
+    chatHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 10,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: "#262626",
+    },
+    chatHeaderLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    pulseDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: "#4ade80",
+    },
+    chatTitle: {
+        color: "#4ade80",
+        fontSize: 11,
+        fontWeight: "bold",
+        letterSpacing: 1,
+    },
+    chatBody: {
+        flex: 1,
+    },
+    aiMessageRow: {
+        flexDirection: "row",
+        gap: 10,
+        alignItems: "flex-start",
+        marginBottom: 12,
+    },
+    aiAvatar: {
+        width: 24,
+        height: 24,
+        borderRadius: 4,
+        backgroundColor: "#262626",
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: "#4ade80",
+    },
+    aiAvatarText: {
+        color: "#4ade80",
+        fontSize: 8,
+        fontWeight: "bold",
+    },
+    messageBubbleAi: {
+        flex: 1,
+        backgroundColor: "#171717",
+        padding: 10,
+        borderRadius: 12,
+        borderTopLeftRadius: 2,
+    },
+    messageTextAi: {
+        color: "#d1d5db",
+        fontSize: 13,
+        lineHeight: 18,
+    },
+    inputArea: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        backgroundColor: "#171717",
+        marginTop: 10,
+        paddingVertical: 4,
+        paddingHorizontal: 6,
+        paddingLeft: 12,
+        borderRadius: 25,
         borderWidth: 1,
-        borderColor: "rgba(74, 222, 128, 0.3)",
+        borderColor: "#262626",
     },
-    statsContent: {
-        flexDirection: "row",
+    inputField: {
+        flex: 1,
+        color: "white",
+        height: 40,
+        fontSize: 13,
+    },
+    sendButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: "#4ade80",
+        justifyContent: "center",
         alignItems: "center",
-        gap: 16,
-    },
-    bigStatNumber: {
-        fontSize: 36,
-        fontWeight: "bold",
-        color: "#4ade80",
-        textShadowColor: "rgba(74, 222, 128, 0.5)",
-        textShadowOffset: { width: 0, height: 0 },
-        textShadowRadius: 15,
     },
 
-    // --- BOTTOM BAR (CORRIGÉ) ---
+    // --- TAB BAR ---
     tabBar: {
         position: "absolute",
         bottom: 0,
         width: width,
-        backgroundColor: "rgba(23, 23, 23, 0.95)", // Semi-transparent
+        backgroundColor: "rgba(23, 23, 23, 0.95)",
         flexDirection: "row",
         justifyContent: "space-around",
-
-        // Correction ici : On ajoute du padding en haut et en bas
         paddingTop: 15,
-        // Sur iOS (iPhone X et +), on met 35px pour éviter la barre noire du bas. Sur Android, 20px suffit.
         paddingBottom: Platform.OS === "ios" ? 35 : 20,
-
         borderTopWidth: 1,
         borderTopColor: "#262626",
     },
@@ -305,7 +460,7 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     tabLabel: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: "500",
     },
 });

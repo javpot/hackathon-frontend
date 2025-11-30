@@ -10,7 +10,7 @@ export const HOST_NETWORK_IP = '172.20.10.2'; // Your host's network IP
 // Storage keys
 export const STORAGE_KEYS = {
   MODE: 'connection_mode', // 'host' | 'client'
-  HOST_IP: 'host_ip',
+  HOST_IP: 'hostIP', // Keep consistent with app usage
   SERVER_PORT: 'server_port',
 } as const;
 

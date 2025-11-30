@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
   Keyboard,
   Platform,
   SafeAreaView,
@@ -40,8 +41,10 @@ export default function Index() {
             onPress={async () => {
               if (name.trim()) {
                 await AsyncStorage.setItem('userName', name.trim());
+                router.push("/connection-mode");
+              } else {
+                Alert.alert('Error', 'Please enter your name');
               }
-              router.push("/home");
             }}
           >
             <Text style={styles.confirmButtonText}>Confirmer</Text>

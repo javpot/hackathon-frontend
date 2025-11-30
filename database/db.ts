@@ -19,13 +19,38 @@ export type Resource = {
     quantity: number;
 };
 
-const DATABASE_NAME = 'app.db';
+// Database name will be set per device to ensure isolation
+let db: SQLite.SQLiteDatabase | null = null;
+let currentDatabaseName = 'app.db';
 
-
-const db = SQLite.openDatabaseSync(DATABASE_NAME);
-
-// --- INITIALISATION ---
-export async function initDB() {
+/**
+ * Initialize database with a device-specific name
+ * This ensures each device/emulator has its own isolated database
+ */
+export async function initDB(deviceVendorID?: string) {
+    // If deviceVendorID is provided, use it to create a unique database name
+    // This ensures each device has its own database file
+    if (deviceVendorID) {
+        const uniqueDbName = `app_${deviceVendorID.replace(/[^a-zA-Z0-9]/g, '_')}.db`;
+        // Only recreate if database name changed
+        if (uniqueDbName !== currentDatabaseName || !db) {
+            currentDatabaseName = uniqueDbName;
+            db = SQLite.openDatabaseSync(uniqueDbName);
+            console.log(`[DB] Using device-specific database: ${uniqueDbName}`);
+        } else {
+            console.log(`[DB] Database already initialized: ${currentDatabaseName}`);
+        }
+    } else if (!db) {
+        // Fallback to default if no device ID yet
+        currentDatabaseName = 'app.db';
+        db = SQLite.openDatabaseSync('app.db');
+        console.log(`[DB] Using default database: app.db`);
+    }
+    
+    if (!db) {
+        throw new Error('Failed to initialize database');
+    }
+    
     // execAsync permet d'exécuter plusieurs commandes SQL d'un coup
     await db.execAsync(`
         PRAGMA journal_mode = WAL;
@@ -48,8 +73,10 @@ export async function initDB() {
     `);
     
     // Migrate existing listings table to add new columns if they don't exist
+    const database = ensureDB();
+    
     try {
-        await db.execAsync(`
+        await database.execAsync(`
             ALTER TABLE listings ADD COLUMN image TEXT;
         `);
     } catch (error: any) {
@@ -60,7 +87,7 @@ export async function initDB() {
     }
     
     try {
-        await db.execAsync(`
+        await database.execAsync(`
             ALTER TABLE listings ADD COLUMN description TEXT;
         `);
     } catch (error: any) {
@@ -73,8 +100,31 @@ export async function initDB() {
 
 // --- LISTINGS ---
 
+// Ensure database is initialized before operations
+function ensureDB() {
+    if (!db) {
+        // Try to initialize with current database name if not already initialized
+        console.log(`[DB] ⚠️ Database not initialized, opening: ${currentDatabaseName}`);
+        try {
+            db = SQLite.openDatabaseSync(currentDatabaseName);
+            console.log(`[DB] ✅ Database opened: ${currentDatabaseName}`);
+        } catch (error) {
+            console.error(`[DB] ❌ Failed to open database ${currentDatabaseName}:`, error);
+            // Fallback to default
+            currentDatabaseName = 'app.db';
+            db = SQLite.openDatabaseSync('app.db');
+            console.log(`[DB] ✅ Fallback to default database: app.db`);
+        }
+    }
+    if (!db) {
+        throw new Error('Database is null - cannot perform operation. Make sure initDB() is called first.');
+    }
+    return db;
+}
+
 export async function addListing(listing: Listing) {
-    const result = await db.runAsync(
+    const database = ensureDB();
+    const result = await database.runAsync(
         'INSERT INTO listings (ressource, vendorName, vendorID, productsInReturn, description, image) VALUES (?, ?, ?, ?, ?, ?)',
         [listing.ressource, listing.vendorName, listing.vendorID, listing.productsInReturn, listing.description ?? null, listing.image ?? null]
     );
@@ -82,12 +132,14 @@ export async function addListing(listing: Listing) {
 }
 
 export async function getAllListings(): Promise<Listing[]> {
-    const rows = await db.getAllAsync('SELECT * FROM listings') as Listing[];
+    const database = ensureDB();
+    const rows = await database.getAllAsync('SELECT * FROM listings') as Listing[];
     return rows;
 }
 
 export async function getAllListingsWithRessources(): Promise<Array<{ listing: Listing; ressource?: Resource }>> {
-    const rows = await db.getAllAsync(`
+    const database = ensureDB();
+    const rows = await database.getAllAsync(`
         SELECT l.*, r.id AS res_id, r.name AS res_name, r.description AS res_description, r.image AS res_image, r.quantity AS res_quantity 
         FROM listings l 
         LEFT JOIN Ressources r ON l.ressource = r.id
@@ -116,18 +168,30 @@ export async function getAllListingsWithRessources(): Promise<Array<{ listing: L
 }
 
 export async function getListingById(id: number): Promise<Listing | null> {
-    const row = await db.getFirstAsync('SELECT * FROM listings WHERE id = ?', [id]) as Listing | null;
+    const database = ensureDB();
+    const row = await database.getFirstAsync('SELECT * FROM listings WHERE id = ?', [id]) as Listing | null;
     return row ?? null;
 }
 
 export async function deleteListingById(id: number) {
-    await db.runAsync('DELETE FROM listings WHERE id = ?', [id]);
+    const database = ensureDB();
+    await database.runAsync('DELETE FROM listings WHERE id = ?', [id]);
+}
+
+/**
+ * Delete ALL listings from the database (useful for clearing cache)
+ */
+export async function deleteAllListings(): Promise<void> {
+    const database = ensureDB();
+    await database.runAsync('DELETE FROM listings');
+    console.log('[DB] ✅ All listings deleted');
 }
 
 // --- RESSOURCES ---
 
 export async function addResource(resource: Resource) {
-    const result = await db.runAsync(
+    const database = ensureDB();
+    const result = await database.runAsync(
         'INSERT INTO Ressources (name, description, image, quantity) VALUES (?, ?, ?, ?)',
         [resource.name, resource.description, resource.image ?? null, resource.quantity]
     );
@@ -135,29 +199,34 @@ export async function addResource(resource: Resource) {
 }
 
 export async function getAllRessources(): Promise<Resource[]> {
-    const rows = await db.getAllAsync('SELECT * FROM Ressources') as Resource[];
+    const database = ensureDB();
+    const rows = await database.getAllAsync('SELECT * FROM Ressources') as Resource[];
     return rows;
 }
 
 export async function getRessourceById(id: number): Promise<Resource | null> {
-    const row = await db.getFirstAsync('SELECT * FROM Ressources WHERE id = ?', [id]) as Resource | null;
+    const database = ensureDB();
+    const row = await database.getFirstAsync('SELECT * FROM Ressources WHERE id = ?', [id]) as Resource | null;
     return row ?? null;
 }
 
 export async function getRessourceByName(name: string): Promise<Resource | null> {
-    const row = await db.getFirstAsync('SELECT * FROM Ressources WHERE name = ? LIMIT 1', [name]) as Resource | null;
+    const database = ensureDB();
+    const row = await database.getFirstAsync('SELECT * FROM Ressources WHERE name = ? LIMIT 1', [name]) as Resource | null;
     return row ?? null;
 }
 
 export async function deleteRessourceById(id: number) {
-    await db.runAsync('DELETE FROM Ressources WHERE id = ?', [id]);
+    const database = ensureDB();
+    await database.runAsync('DELETE FROM Ressources WHERE id = ?', [id]);
 }
 
 // --- SPÉCIAL CHATBOT (RAG) ---
 // C'est la fonction que le bot utilise pour lire ton inventaire
 export async function getInventoryForBot(): Promise<string> {
     try {
-        const rows = await db.getAllAsync(
+        const database = ensureDB();
+        const rows = await database.getAllAsync(
             'SELECT name, quantity, description FROM Ressources'
         ) as {name: string, quantity: number, description: string}[];
 
@@ -179,6 +248,7 @@ export default {
     getAllListings,
     getListingById,
     deleteListingById,
+    deleteAllListings,
     addResource,
     getAllRessources,
     getRessourceById,

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MODE_KEY = 'connection_mode';
-const HOST_IP_KEY = 'host_ip';
+const HOST_IP_KEY = 'hostIP'; // Keep consistent with app usage
 
 /**
  * Get current mode: 'host' | 'client' | null

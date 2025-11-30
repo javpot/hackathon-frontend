@@ -1,29 +1,32 @@
 import {
-    FontAwesome5,
-    Ionicons,
-    MaterialCommunityIcons,
+  FontAwesome5,
+  Ionicons,
+  MaterialCommunityIcons,
 } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Dimensions, // Ajouté pour le chargement
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions, // Ajouté pour le chargement
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // --- IMPORT DU SERVICE CHATBOT ---
 import { initDB } from "../database/db";
 import { sendChatMessage } from "../services/chatService";
+import { stopServer } from "../services/localServer";
+import { checkHostAlive } from "../services/localclient";
 
 const { width } = Dimensions.get("window");
 
@@ -48,6 +51,8 @@ const Home: React.FC = () => {
   // --- 1. ÉTATS (STATE) ---
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [connectionMode, setConnectionMode] = useState<'host' | 'client' | null>(null);
+  const [hostIP, setHostIP] = useState<string>('');
   
   // Messages initiaux (Hardcodés pour l'ambiance, mais stockés dans le state)
   const [messages, setMessages] = useState<Message[]>([
@@ -111,7 +116,140 @@ const Home: React.FC = () => {
       }
     };
     setupDatabase();
+
+    // Load connection mode and host IP
+    const loadConnectionMode = async () => {
+      const mode = await AsyncStorage.getItem('connectionMode');
+      const ip = await AsyncStorage.getItem('hostIP');
+      if (mode === 'host' || mode === 'client') {
+        setConnectionMode(mode);
+      }
+      if (ip) {
+        setHostIP(ip);
+      }
+    };
+    loadConnectionMode();
   }, []);
+
+  // Health check for client mode
+  useEffect(() => {
+    if (connectionMode !== 'client' || !hostIP) {
+      return;
+    }
+
+    console.log('[Home] 🏥 Starting health check for client mode');
+    const healthCheckInterval = setInterval(async () => {
+      try {
+        const isAlive = await checkHostAlive(hostIP, 3000, 5000);
+        if (!isAlive) {
+          console.log('[Home] ⚠️ Host is not responding - cleaning up and forcing navigation');
+          // Remove client listings from host before disconnecting
+          const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
+          const mode = await AsyncStorage.getItem('connectionMode');
+          const vendorID = deviceVendorID ? (mode ? `${mode}-${deviceVendorID}` : deviceVendorID) : null;
+          
+          if (vendorID) {
+            try {
+              const { deleteListingFromHost } = await import('../services/localclient');
+              await deleteListingFromHost(vendorID, hostIP, 3000);
+              console.log('[Home] ✅ Client listings removed from host');
+            } catch (error) {
+              console.error('[Home] Error removing listings from host:', error);
+            }
+          }
+          
+          // Clear connection info
+          await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
+          // Force navigation
+          router.replace('/connection-mode');
+        }
+      } catch (error) {
+        console.error('[Home] Error during health check:', error);
+        // If health check fails, cleanup and force navigation
+        const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
+        const mode = await AsyncStorage.getItem('connectionMode');
+        const vendorID = deviceVendorID ? (mode ? `${mode}-${deviceVendorID}` : deviceVendorID) : null;
+        
+        if (vendorID && hostIP) {
+          try {
+            const { deleteListingFromHost } = await import('../services/localclient');
+            await deleteListingFromHost(vendorID, hostIP, 3000);
+          } catch (error) {
+            // Ignore cleanup errors
+          }
+        }
+        
+        await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
+        router.replace('/connection-mode');
+      }
+    }, 7000); // 7 seconds
+
+    return () => {
+      clearInterval(healthCheckInterval);
+      // Cleanup: Remove client listings when component unmounts or connection mode changes
+      if (connectionMode === 'client' && hostIP) {
+        const cleanup = async () => {
+          const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
+          const mode = await AsyncStorage.getItem('connectionMode');
+          const vendorID = deviceVendorID ? (mode ? `${mode}-${deviceVendorID}` : deviceVendorID) : null;
+          
+          if (vendorID) {
+            try {
+              const { deleteListingFromHost } = await import('../services/localclient');
+              await deleteListingFromHost(vendorID, hostIP, 3000);
+              console.log('[Home] ✅ Cleaned up client listings on unmount');
+            } catch (error) {
+              console.error('[Home] Error cleaning up listings on unmount:', error);
+            }
+          }
+        };
+        cleanup();
+      }
+    };
+  }, [connectionMode, hostIP, router]);
+
+  const handleLogout = async () => {
+    try {
+      // If client, remove all listings from host before disconnecting
+      if (connectionMode === 'client') {
+        const hostIP = await AsyncStorage.getItem('hostIP');
+        const deviceVendorID = await AsyncStorage.getItem('deviceVendorID');
+        const mode = await AsyncStorage.getItem('connectionMode');
+        const vendorID = deviceVendorID ? (mode ? `${mode}-${deviceVendorID}` : deviceVendorID) : null;
+        
+        if (hostIP && vendorID) {
+          console.log('[Home] 🧹 Cleaning up: Removing all client listings from host');
+          try {
+            const { deleteListingFromHost } = await import('../services/localclient');
+            await deleteListingFromHost(vendorID, hostIP, 3000);
+            console.log('[Home] ✅ Client listings removed from host');
+          } catch (error) {
+            console.error('[Home] Error removing listings from host:', error);
+            // Continue anyway - cleanup is best effort
+          }
+        }
+      }
+      
+      // If host, stop the server
+      if (connectionMode === 'host') {
+        console.log('[Home] 🛑 Stopping server...');
+        await stopServer();
+        console.log('[Home] ✅ Server stopped');
+      }
+      
+      // Clear connection info
+      await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
+      console.log('[Home] ✅ Connection info cleared');
+      
+      // Navigate back to connection mode
+      router.replace('/connection-mode');
+    } catch (error) {
+      console.error('[Home] Error during logout:', error);
+      // Still navigate even if there's an error
+      await AsyncStorage.multiRemove(['connectionMode', 'hostIP']);
+      router.replace('/connection-mode');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -128,6 +266,32 @@ const Home: React.FC = () => {
           <MaterialCommunityIcons name="heart-pulse" size={20} color="white" />
           <Text style={styles.statusText}>SURVIVABILITY INDEX: HIGH</Text>
         </LinearGradient>
+        
+        {/* Connection Mode Badge and Logout */}
+        {connectionMode && (
+          <View style={styles.connectionBadgeContainer}>
+            <View style={[
+              styles.connectionBadge,
+              connectionMode === 'host' ? styles.hostBadge : styles.clientBadge
+            ]}>
+              <Ionicons 
+                name={connectionMode === 'host' ? 'server' : 'phone-portrait'} 
+                size={14} 
+                color="#fff" 
+              />
+              <Text style={styles.connectionBadgeText}>
+                {connectionMode === 'host' ? 'HOST' : 'CLIENT'}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={handleLogout}
+              style={styles.logoutButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="log-out-outline" size={18} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* --- CONTENT (FIXED LAYOUT) --- */}
@@ -329,7 +493,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#050505",
   },
   headerContainer: {
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
     paddingVertical: 15,
   },
   statusBadge: {
@@ -344,6 +511,37 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "800",
     fontSize: 12,
+  },
+  connectionBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  connectionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  logoutButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  hostBadge: {
+    backgroundColor: '#4ade80',
+  },
+  clientBadge: {
+    backgroundColor: '#3b82f6',
+  },
+  connectionBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
     letterSpacing: 1,
   },
   mainContent: {

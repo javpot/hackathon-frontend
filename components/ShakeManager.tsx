@@ -15,11 +15,28 @@ export default function ShakeManager() {
     useEffect(() => {
         if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
 
-        Accelerometer.setUpdateInterval(100);
-        const subscription = Accelerometer.addListener(setData);
+        let subscription: any = null;
+
+        // Delay initialization to ensure React Native bridge is ready
+        // This fixes RCTEventEmitter errors in Release builds with new architecture
+        const initTimer = setTimeout(() => {
+            try {
+                Accelerometer.setUpdateInterval(100);
+                subscription = Accelerometer.addListener(setData);
+            } catch (error) {
+                console.log('Accelerometer not available:', error);
+            }
+        }, 500); // Wait 500ms for bridge to initialize
 
         return () => {
-            subscription.remove();
+            clearTimeout(initTimer);
+            if (subscription) {
+                try {
+                    subscription.remove();
+                } catch (error) {
+                    console.log('Error removing accelerometer listener:', error);
+                }
+            }
         };
     }, []);
 

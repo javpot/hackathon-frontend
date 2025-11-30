@@ -1,7 +1,7 @@
 import * as Location from 'expo-location'; // <--- Import this
 import { Accelerometer } from 'expo-sensors';
 import { useEffect, useState } from 'react';
-import { Alert, Platform, Vibration } from 'react-native';
+import { Platform, Vibration } from 'react-native';
 import { useAlerts } from '../contexts/AlertContext';
 
 // Threshold: Higher = Harder to trigger
@@ -47,7 +47,7 @@ export default function ShakeManager() {
 
         // 3. Send Alert with REAL coords
         addAlert({
-            type: 'sos',
+            type: 'warning',
             message: 'SOS Signal (Shake Detected)',
             coords: coords
         });

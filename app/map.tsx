@@ -12,20 +12,11 @@ import {
     View,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import AlertMarker from "../components/AlertMarker";
 import AlertModal from "../components/AlertModal";
 import { MapAlert, useAlerts } from "../contexts/AlertContext";
 
 const { width } = Dimensions.get("window");
-
-const getPinColor = (type: string) => {
-    switch (type) {
-        case "hospital": return "#ef4444"; // Red
-        case "food": return "#f59e0b";     // Orange
-        case "water": return "#3b82f6";    // Blue
-        case "shelter": return "#4ade80";  // Green
-        default: return "#8b5cf6";         // Purple
-    }
-};
 
 export default function MapScreen() {
     const router = useRouter();
@@ -46,7 +37,6 @@ export default function MapScreen() {
                     return;
                 }
 
-                // Balanced accuracy is faster and uses less battery
                 const loc = await Location.getCurrentPositionAsync({
                     accuracy: Location.Accuracy.Balanced,
                 });
@@ -79,7 +69,6 @@ export default function MapScreen() {
         );
     }
 
-    // Default to Paris if no location, otherwise center on user
     const initialRegion = location
         ? {
             latitude: location.coords.latitude,
@@ -105,20 +94,19 @@ export default function MapScreen() {
                 showsMyLocationButton={true}
                 userInterfaceStyle="dark"
             >
-                {/* Render Alert Markers from Context */}
                 {alerts.map((a: MapAlert, index: number) =>
                     a.coords ? (
                         <Marker
                             key={a.id || index}
                             coordinate={a.coords}
                             title={a.message || a.type}
-                            pinColor={getPinColor(a.type)}
-                        />
+                        >
+                            <AlertMarker type={a.type} />
+                        </Marker>
                     ) : null
                 )}
             </MapView>
 
-            {/* Floating Action Button (FAB) to Add Alert Manually */}
             <TouchableOpacity
                 style={styles.fab}
                 onPress={() => setManualModalVisible(true)}
@@ -130,17 +118,14 @@ export default function MapScreen() {
                 visible={manualModalVisible}
                 onRequestClose={() => setManualModalVisible(false)}
                 onSelect={(type) => {
-                    // Use real location if available, otherwise 0,0
                     const coords = location
                         ? { latitude: location.coords.latitude, longitude: location.coords.longitude }
                         : { latitude: 0, longitude: 0 };
-
                     addAlert({ type, coords, message: type });
                     setManualModalVisible(false);
                 }}
             />
 
-            {/* Bottom Navigation Bar */}
             <View style={styles.tabBar}>
                 <TabItem
                     icon="home"
@@ -174,7 +159,7 @@ const TabItem = ({ icon, label, isActive, onPress }: any) => (
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#050505" },
-    map: { ...StyleSheet.absoluteFillObject },
+    map: { width: width, height: "100%" },
     center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#050505" },
     loadingText: { marginTop: 12, color: "#4ade80" },
     errorText: { color: "#ff4444", paddingHorizontal: 24, textAlign: "center" },

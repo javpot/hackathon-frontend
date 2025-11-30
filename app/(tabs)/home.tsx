@@ -22,7 +22,6 @@ import {
   View
 } from "react-native";
 import { AlertType, MapAlert, useAlerts } from "../../contexts/AlertContext";
-import { initDB } from "../../database/db";
 import { sendChatMessage } from "../../services/chatService";
 import { stopServer } from "../../services/localServer";
 import { checkHostAlive, sendKeepAlive } from "../../services/localclient";
@@ -112,15 +111,7 @@ const Home: React.FC = () => {
   };
 
   useEffect(() => {
-    const setupDatabase = async () => {
-      try {
-        await initDB();
-        console.log("✅ Base de données initialisée et Tables créées !");
-      } catch (e) {
-        console.error("❌ Erreur création DB:", e);
-      }
-    };
-    setupDatabase();
+    // Database initialization removed - no longer needed for trade listings
 
     // Load connection mode and host IP
     const loadConnectionMode = async () => {
@@ -510,7 +501,7 @@ const Home: React.FC = () => {
 
                   return (
                     <ResourceCard
-                      key={type}
+                      key={`${type}-${closest.id}`}
                       title={title}
                       subtitle={subtitle}
                       distance={distance}
@@ -524,8 +515,9 @@ const Home: React.FC = () => {
                 const foodCard = getClosestWaypointCard('food');
                 const waterCard = getClosestWaypointCard('water');
                 const shelterCard = getClosestWaypointCard('shelter');
+                const tradeCard = getClosestWaypointCard('info'); // Trade waypoints use 'info' type
                 
-                const hasWaypointCards = hospitalCard || foodCard || waterCard || shelterCard;
+                const hasWaypointCards = hospitalCard || foodCard || waterCard || shelterCard || tradeCard;
 
                 return (
                   <>
@@ -533,6 +525,7 @@ const Home: React.FC = () => {
                     {foodCard}
                     {waterCard}
                     {shelterCard}
+                    {tradeCard}
                     
                     {/* Add Plus Card if no waypoint cards */}
                     {!hasWaypointCards && (
@@ -698,7 +691,7 @@ const getTypeConfig = (type: AlertType): {
     shelter: { iconName: 'home-variant', color: '#10b981', defaultSubtitle: 'Shelter' },
     danger: { iconName: 'alert-circle', color: '#dc2626', defaultSubtitle: 'Danger Zone' },
     warning: { iconName: 'alert', color: '#f59e0b', defaultSubtitle: 'Warning' },
-    info: { iconName: 'information', color: '#3b82f6', defaultSubtitle: 'Information' },
+    info: { iconName: 'handshake', color: '#4ade80', defaultSubtitle: 'Trade Location' },
     other: { iconName: 'map-marker', color: '#6b7280', defaultSubtitle: 'Location' },
   };
   return configs[type] || configs.other;

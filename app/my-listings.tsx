@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -20,6 +21,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { useAlerts } from '../contexts/AlertContext';
 import { addListing, deleteAllListings, deleteListingById, getAllListings, getAllRessources, initDB, Listing, Resource } from '../database/db';
 import { checkHostAlive, deleteListingFromHost, sendListingToHost } from '../services/localclient';
 import { addListingToStore } from '../services/localServer';
@@ -28,6 +30,7 @@ const { width } = Dimensions.get('window');
 
 export default function ListingsScreen() {
   const router = useRouter();
+  const { addAlert } = useAlerts();
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,6 +38,7 @@ export default function ListingsScreen() {
   const [showForm, setShowForm] = useState(false);
   const [connectionMode, setConnectionMode] = useState<'host' | 'client' | 'offline' | null>(null);
   const [hostIP, setHostIP] = useState<string>('');
+  const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
 
   // Form state
   const [vendorName, setVendorName] = useState('');
@@ -56,10 +60,23 @@ export default function ListingsScreen() {
       } else {
         await initDB();
       }
-      // Wait a bit for vendorID state to be set, then load data
-      setTimeout(() => {
-        loadData();
-      }, 100);
+      // Get user location
+      const getLocation = async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            const location = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            setUserLocation(location);
+          }
+        } catch (error) {
+          console.error('Error getting location:', error);
+        }
+      };
+      getLocation();
+      // Load data immediately
+      loadData();
     };
     initialize();
   }, []);
@@ -279,8 +296,11 @@ export default function ListingsScreen() {
       } else {
         await initDB();
       }
-      const allListings = await getAllListings();
-      const allResources = await getAllRessources();
+      // Load data in parallel for better performance
+      const [allListings, allResources] = await Promise.all([
+        getAllListings(),
+        getAllRessources()
+      ]);
       
       // Get the current device's vendorID - ensure we have it
       let currentDeviceID = vendorID;
@@ -559,6 +579,9 @@ export default function ListingsScreen() {
               // Get the listing to find vendorID
               const listingToDelete = myListings.find(l => l.id === listingId);
               
+              // Optimistically update UI - remove from state immediately
+              setMyListings(prev => prev.filter(l => l.id !== listingId));
+              
               // Delete from local database
               await deleteListingById(listingId);
               
@@ -582,10 +605,31 @@ export default function ListingsScreen() {
                 }
               }
               
-              await loadData(); // Reload my listings
-              Alert.alert('Success', 'Listing deleted successfully');
+              // Reload in background to ensure sync, but UI already updated
+              loadData().catch(error => {
+                console.error('Error reloading after delete:', error);
+                // If reload fails, revert the optimistic update
+                if (listingToDelete) {
+                  setMyListings(prev => {
+                    if (!prev.find(l => l.id === listingId)) {
+                      return [...prev, listingToDelete];
+                    }
+                    return prev;
+                  });
+                }
+              });
             } catch (error) {
               console.error('Error deleting listing:', error);
+              // Revert optimistic update on error
+              const listingToDelete = myListings.find(l => l.id === listingId);
+              if (listingToDelete) {
+                setMyListings(prev => {
+                  if (!prev.find(l => l.id === listingId)) {
+                    return [...prev, listingToDelete];
+                  }
+                  return prev;
+                });
+              }
               Alert.alert('Error', 'Failed to delete listing');
             }
           },
@@ -625,7 +669,6 @@ export default function ListingsScreen() {
               
               // Clear React state
               setMyListings([]);
-              setBarterListings([]);
               setVendorID('');
               setVendorName('');
               setConnectionMode(null);
@@ -681,6 +724,14 @@ export default function ListingsScreen() {
       // Use current vendorID from state (which should already be updated with connection mode)
       const currentVendorID = vendorID || 'unknown';
       
+      // Get user coordinates
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      if (userLocation) {
+        latitude = userLocation.coords.latitude;
+        longitude = userLocation.coords.longitude;
+      }
+
       const newListing: Listing = {
         ressource: selectedResourceId || 0, // Use 0 as default if no resource selected
         vendorName: vendorName.trim(),
@@ -688,6 +739,8 @@ export default function ListingsScreen() {
         productsInReturn: productsInReturn.trim(),
         description: description.trim() || undefined,
         image: imageBase64 || undefined,
+        latitude,
+        longitude,
       };
 
       console.log(`[${connectionMode}] Creating listing with vendorID: ${newListing.vendorID}, vendorName: ${newListing.vendorName}`);
@@ -815,18 +868,52 @@ export default function ListingsScreen() {
             </TouchableOpacity>
           )}
           
-          {/* Bouton Message */}
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={20}
-              color="#4ade80"
-            />
-          </TouchableOpacity>
-
-          {/* Bouton Appel */}
-          <TouchableOpacity style={[styles.actionButton, styles.callButton]}>
-            <Ionicons name="call-outline" size={20} color="#000" />
+          {/* Bubble Button - Add waypoint and trade card */}
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.bubbleButton]}
+            onPress={async () => {
+              try {
+                if (item.latitude && item.longitude) {
+                  const lat = Number(item.latitude);
+                  const lon = Number(item.longitude);
+                  
+                  if (isNaN(lat) || isNaN(lon)) {
+                    console.error('[My Listings] Invalid coordinates:', { lat, lon });
+                    Alert.alert('Error', 'Invalid location coordinates');
+                    return;
+                  }
+                  
+                  console.log('[My Listings] Adding trade waypoint:', {
+                    lat,
+                    lon,
+                    vendorName: item.vendorName
+                  });
+                  
+                  // Add waypoint to map
+                  addAlert({
+                    type: 'info',
+                    coords: {
+                      latitude: lat,
+                      longitude: lon,
+                    },
+                    message: `${item.vendorName}${item.description ? ' - ' + item.description : ''}`,
+                  });
+                  
+                  console.log('[My Listings] ✅ Waypoint added successfully');
+                  // Navigate to map to show the waypoint
+                  router.push('/map');
+                  Alert.alert('Success', 'Trade location added to map');
+                } else {
+                  Alert.alert('Error', 'This listing has no location data');
+                }
+              } catch (error) {
+                console.error('[My Listings] Error adding trade waypoint:', error);
+                Alert.alert('Error', 'Failed to add trade location to map');
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="location" size={18} color="#4ade80" />
           </TouchableOpacity>
         </View>
       </View>
@@ -889,14 +976,52 @@ export default function ListingsScreen() {
         />
       )}
 
-        {/* Add Button - Floating at Bottom */}
+      {/* Add Button - Floating at Bottom */}
+      <View style={styles.addButtonContainer} pointerEvents="box-none">
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => setShowForm(true)}
+          onPress={async () => {
+            console.log('[My Listings] Add button pressed');
+            // Open form immediately
+            setShowForm(true);
+            
+            // Pre-fill form with default values (non-blocking)
+            AsyncStorage.getItem('userName').then(storedName => {
+              setVendorName(storedName || '');
+            }).catch(error => {
+              console.error('Error loading username:', error);
+            });
+            
+            // Reset form fields
+            setDescription('');
+            setProductsInReturn('');
+            setSelectedResourceId(null);
+            setImageBase64(null);
+            
+            // Get fresh location in background (non-blocking)
+            Location.requestForegroundPermissionsAsync()
+              .then(({ status }) => {
+                if (status === 'granted') {
+                  return Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Balanced,
+                  });
+                }
+                return null;
+              })
+              .then(location => {
+                if (location) {
+                  setUserLocation(location);
+                }
+              })
+              .catch(error => {
+                console.error('Error getting location:', error);
+              });
+          }}
           activeOpacity={0.8}
         >
           <Ionicons name="add" size={32} color="#000" />
         </TouchableOpacity>
+      </View>
 
         {/* Form Modal Overlay */}
         <Modal
@@ -926,6 +1051,7 @@ export default function ListingsScreen() {
                     setDescription('');
                     setProductsInReturn('');
                     setImageBase64(null);
+                    setSelectedResourceId(null);
                   }}
                   style={styles.closeButton}
                 >
@@ -944,7 +1070,7 @@ export default function ListingsScreen() {
                   style={styles.input}
                   value={vendorName}
                   onChangeText={setVendorName}
-                  placeholder="Enter vendor name"
+                  placeholder="Enter your name"
                   placeholderTextColor="#666"
                 />
 
@@ -962,7 +1088,7 @@ export default function ListingsScreen() {
                   style={[styles.input, styles.textArea]}
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Describe the item you're listing..."
+                  placeholder="What are you offering? (e.g., Water bottles, Medical supplies)"
                   placeholderTextColor="#666"
                   multiline
                   numberOfLines={3}
@@ -973,7 +1099,7 @@ export default function ListingsScreen() {
                   style={[styles.input, styles.textArea]}
                   value={productsInReturn}
                   onChangeText={setProductsInReturn}
-                  placeholder="What do you want in return?"
+                  placeholder="What do you need? (e.g., Food, Batteries, Tools)"
                   placeholderTextColor="#666"
                   multiline
                   numberOfLines={3}
@@ -1025,6 +1151,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#050505',
     paddingBottom: 90,
+    overflow: 'visible',
   },
   header: {
     paddingHorizontal: 20,
@@ -1107,10 +1234,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#171717',
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: 'visible',
     borderWidth: 1,
     borderColor: '#262626',
-    height: 130,
+    minHeight: 130,
   },
   imageWrapper: {
     width: 110,
@@ -1131,6 +1258,7 @@ const styles = StyleSheet.create({
   detailsContainer: {
     flex: 1,
     padding: 12,
+    paddingBottom: 12,
     justifyContent: 'space-between',
   },
   infoTop: {
@@ -1166,7 +1294,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
-    marginTop: 10,
+    marginTop: 8,
+    paddingRight: 4,
+    marginBottom: 0,
   },
   actionButton: {
     width: 36,
@@ -1182,8 +1312,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
-  callButton: {
-    backgroundColor: '#4ade80',
+  bubbleButton: {
+    backgroundColor: '#262626',
     borderColor: '#4ade80',
   },
   label: {
@@ -1311,10 +1441,15 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
   },
-  addButton: {
+  addButtonContainer: {
     position: 'absolute',
     bottom: 30,
     right: 30,
+    width: 60,
+    height: 60,
+    zIndex: 1000,
+  },
+  addButton: {
     width: 60,
     height: 60,
     borderRadius: 30,

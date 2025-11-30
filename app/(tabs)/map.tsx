@@ -30,6 +30,44 @@ export default function MapScreen() {
   const [manualModalVisible, setManualModalVisible] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<MapAlert | null>(null);
 
+  // Debug: Log alerts when they change and center map on new waypoints
+  useEffect(() => {
+    console.log(`[Map] Alerts updated: ${alerts.length} waypoints`);
+    alerts.forEach((a, i) => {
+      console.log(`[Map] Waypoint ${i}:`, {
+        id: a.id,
+        type: a.type,
+        hasCoords: !!a.coords,
+        lat: a.coords?.latitude,
+        lon: a.coords?.longitude,
+        message: a.message
+      });
+    });
+    
+    // If we have waypoints and location, ensure at least one waypoint is visible
+    if (alerts.length > 0 && mapRef.current) {
+      const validWaypoints = alerts.filter(a => 
+        a && a.coords && 
+        typeof a.coords.latitude === 'number' && 
+        typeof a.coords.longitude === 'number'
+      );
+      
+      if (validWaypoints.length > 0) {
+        const firstWaypoint = validWaypoints[0];
+        try {
+          mapRef.current.animateToRegion({
+            latitude: firstWaypoint.coords!.latitude,
+            longitude: firstWaypoint.coords!.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }, 1000);
+        } catch (error) {
+          console.error('Error centering on waypoint:', error);
+        }
+      }
+    }
+  }, [alerts.length]); // Only trigger when count changes
+
   useEffect(() => {
     (async () => {
       try {
@@ -111,21 +149,34 @@ export default function MapScreen() {
         ref={mapRef}
         style={styles.map}
         initialRegion={initialRegion}
+        region={location ? {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        } : undefined}
         showsUserLocation={true}
-        showsMyLocationButton={true}
+        showsMyLocationButton={false}
         userInterfaceStyle="dark"
         loadingEnabled={true}
         mapPadding={{ top: 0, right: 0, bottom: 0, left: 0 }}
         onMapReady={() => {
           // Center on user location when map is ready
           if (mapRef.current && location) {
-            mapRef.current.animateToRegion({
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }, 500);
+            try {
+              mapRef.current.animateToRegion({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }, 500);
+            } catch (error) {
+              console.error('Error animating to region:', error);
+            }
           }
+        }}
+        onError={(error) => {
+          console.error('Map error:', error);
         }}
       >
         {/* CartoDB tiles for offline support */}
@@ -136,20 +187,56 @@ export default function MapScreen() {
           tileSize={256}
         />
         
-        {alerts.map((a: MapAlert, index: number) =>
-          a.coords ? (
-            <Marker
-              key={a.id || index}
-              coordinate={a.coords}
-              title={a.message || a.type}
-              onPress={() => {
-                setSelectedAlert(a);
-              }}
-            >
-              <AlertMarker type={a.type} />
-            </Marker>
-          ) : null
-        )}
+        {/* Render markers */}
+        {alerts
+          .filter(a => {
+            if (!a || !a.coords) {
+              return false;
+            }
+            const lat = a.coords.latitude;
+            const lon = a.coords.longitude;
+            const isValid = 
+              typeof lat === 'number' && 
+              typeof lon === 'number' &&
+              !isNaN(lat) &&
+              !isNaN(lon) &&
+              lat >= -90 && lat <= 90 &&
+              lon >= -180 && lon <= 180;
+            if (!isValid) {
+              console.log(`[Map] Invalid waypoint ${a?.id}:`, { lat, lon, a });
+            }
+            return isValid;
+          })
+          .map((a: MapAlert) => {
+            const coord = a.coords!;
+            console.log(`[Map] ✅ Rendering waypoint ${a.id} at (${coord.latitude}, ${coord.longitude})`);
+            return (
+              <Marker
+                key={`marker-${a.id}`}
+                coordinate={{
+                  latitude: coord.latitude,
+                  longitude: coord.longitude,
+                }}
+                title={a.message || a.type || 'Waypoint'}
+                description={a.message || a.type || 'Waypoint'}
+                anchor={{ x: 0.5, y: 0.5 }}
+                onPress={(e) => {
+                  try {
+                    e.stopPropagation();
+                    if (a && a.id) {
+                      console.log(`[Map] Marker pressed: ${a.id}`);
+                      setSelectedAlert(a);
+                    }
+                  } catch (error) {
+                    console.error('Error selecting alert:', error);
+                  }
+                }}
+                tracksViewChanges={true}
+              >
+                <AlertMarker type={a.type || 'other'} />
+              </Marker>
+            );
+          })}
       </MapView>
 
       <TouchableOpacity
@@ -175,12 +262,12 @@ export default function MapScreen() {
       />
 
       {/* Delete confirmation modal */}
-      {selectedAlert && (
+      {selectedAlert && selectedAlert.coords && (
         <View style={styles.deleteModal}>
           <View style={styles.deleteModalContent}>
             <Text style={styles.deleteModalTitle}>Delete Waypoint?</Text>
             <Text style={styles.deleteModalText}>
-              {selectedAlert.message || selectedAlert.type}
+              {selectedAlert.message || selectedAlert.type || 'Waypoint'}
             </Text>
             <View style={styles.deleteModalButtons}>
               <TouchableOpacity
@@ -192,8 +279,16 @@ export default function MapScreen() {
               <TouchableOpacity
                 style={[styles.deleteModalButton, styles.deleteModalButtonDelete]}
                 onPress={() => {
-                  if (selectedAlert.id) {
-                    removeAlert(selectedAlert.id);
+                  try {
+                    if (selectedAlert && selectedAlert.id) {
+                      removeAlert(selectedAlert.id);
+                      setSelectedAlert(null);
+                    } else {
+                      console.warn('Cannot delete waypoint: missing ID');
+                      setSelectedAlert(null);
+                    }
+                  } catch (error) {
+                    console.error('Error deleting waypoint:', error);
                     setSelectedAlert(null);
                   }
                 }}

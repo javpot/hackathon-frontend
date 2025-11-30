@@ -10,7 +10,6 @@
     "newArchEnabled": true,
     "ios": {
       "config": {
-        "googleMapsApiKey": "AIzaSyB085TVEkI8AYzaZ0ikBdA-xkNbRdPuQSw"
       },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app uses your location to center the map and show where you are.",
@@ -23,9 +22,6 @@
     },
     "android": {
       "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyB085TVEkI8AYzaZ0ikBdA-xkNbRdPuQSw"
-        }
       },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",

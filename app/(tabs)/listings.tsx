@@ -3,8 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
+    ActivityIndicator, Alert, Dimensions,
     FlatList,
     Image,
     SafeAreaView,
@@ -15,6 +14,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { useAlerts } from '../../contexts/AlertContext';
 import { checkHostAlive, pollListingsFromHost } from '../../services/localclient';
 import { getAllServerListings } from '../../services/localServer';
 
@@ -29,10 +29,13 @@ type ServerListing = {
   image?: string;
   clientId?: string;
   serverId?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export default function Listings() {
   const router = useRouter();
+  const { addAlert } = useAlerts();
   const [barterListings, setBarterListings] = useState<ServerListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [connectionMode, setConnectionMode] = useState<'host' | 'client' | 'offline' | null>(null);
@@ -201,18 +204,53 @@ export default function Listings() {
 
         {/* Boutons d'Action (En bas à droite) */}
         <View style={styles.actionRow}>
-          {/* Bouton Message */}
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={20}
-              color="#4ade80"
-            />
-          </TouchableOpacity>
-
-          {/* Bouton Appel */}
-          <TouchableOpacity style={[styles.actionButton, styles.callButton]}>
-            <Ionicons name="call-outline" size={20} color="#000" />
+          {/* Bubble Button - Add waypoint and trade card */}
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.bubbleButton]}
+            onPress={async () => {
+              try {
+                if (item.latitude && item.longitude) {
+                  const lat = Number(item.latitude);
+                  const lon = Number(item.longitude);
+                  
+                  if (isNaN(lat) || isNaN(lon)) {
+                    console.error('[Listings] Invalid coordinates:', { lat, lon });
+                    Alert.alert('Error', 'Invalid location coordinates');
+                    return;
+                  }
+                  
+                  console.log('[Listings] Adding trade waypoint:', {
+                    lat,
+                    lon,
+                    vendorName: item.vendorName
+                  });
+                  
+                  // Add waypoint to map
+                  addAlert({
+                    type: 'info',
+                    coords: {
+                      latitude: lat,
+                      longitude: lon,
+                    },
+                    message: `${item.vendorName}${item.description ? ' - ' + item.description : ''}`,
+                  });
+                  
+                  console.log('[Listings] ✅ Waypoint added successfully');
+                  // Navigate to map to show the waypoint
+                  router.push('/map');
+                  Alert.alert('Success', 'Trade location added to map');
+                } else {
+                  console.warn('[Listings] No location data for listing:', item);
+                  Alert.alert('Error', 'This listing has no location data');
+                }
+              } catch (error) {
+                console.error('[Listings] Error adding trade waypoint:', error);
+                Alert.alert('Error', 'Failed to add trade location to map');
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="location" size={18} color="#4ade80" />
           </TouchableOpacity>
         </View>
       </View>
@@ -382,10 +420,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#171717',
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: 'visible',
     borderWidth: 1,
     borderColor: '#262626',
-    height: 130,
+    minHeight: 130,
   },
   imageWrapper: {
     width: 110,
@@ -406,6 +444,7 @@ const styles = StyleSheet.create({
   detailsContainer: {
     flex: 1,
     padding: 12,
+    paddingBottom: 12,
     justifyContent: 'space-between',
   },
   infoTop: {
@@ -441,7 +480,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
-    marginTop: 10,
+    marginTop: 8,
+    paddingRight: 4,
+    marginBottom: 0,
   },
   actionButton: {
     width: 36,
@@ -453,8 +494,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
-  callButton: {
-    backgroundColor: '#4ade80',
+  bubbleButton: {
+    backgroundColor: '#262626',
     borderColor: '#4ade80',
   },
 });

@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  ImageBackground,
   Keyboard,
   Platform,
   SafeAreaView,
@@ -13,7 +14,7 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  View,
+  View
 } from "react-native";
 
 export default function Index() {
@@ -37,11 +38,20 @@ export default function Index() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" />
+      <ImageBackground
+        source={require('../assets/images/zombie-background.jpg')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+        imageStyle={styles.backgroundImageStyle}
+      >
+        {/* Dark overlay for better text readability */}
+        <View style={styles.overlay} />
+        
+        <SafeAreaView style={styles.container}>
+          <StatusBar barStyle="light-content" />
 
-        <View style={styles.content}>
-          <View style={styles.titleContainer}>
+          {/* Title at the top */}
+          <View style={styles.titleContainerTop}>
             <LinearGradient
               colors={["#4ade80", "#22c55e", "#16a34a"]}
               start={{ x: 0, y: 0 }}
@@ -51,46 +61,75 @@ export default function Index() {
               <Text style={styles.appTitle}>Survia</Text>
             </LinearGradient>
           </View>
-          <Text style={styles.subtitle}>Pick your survivor nickname</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Votre nom"
-            placeholderTextColor="#777"
-            value={name}
-            onChangeText={setName}
-          />
+          <View style={styles.content}>
+            {/* Spacer to push form to bottom */}
+          </View>
+          
+          <View style={styles.loginForm}>
+            <TextInput
+              style={styles.input}
+              placeholder="Votre nom"
+              placeholderTextColor="#777"
+              value={name}
+              onChangeText={setName}
+            />
 
-          <TouchableOpacity
-            style={styles.confirmButton}
-            activeOpacity={0.8}
-            onPress={async () => {
-              if (name.trim()) {
-                await AsyncStorage.setItem('userName', name.trim());
-                router.push("/connection-mode");
-              } else {
-                Alert.alert('Error', 'Please enter your name');
-              }
-            }}
-          >
-            <Text style={styles.confirmButtonText}>Confirmer</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+            <TouchableOpacity
+              style={styles.confirmButton}
+              activeOpacity={0.8}
+              onPress={async () => {
+                if (name.trim()) {
+                  await AsyncStorage.setItem('userName', name.trim());
+                  router.push("/connection-mode");
+                } else {
+                  Alert.alert('Error', 'Please enter your name');
+                }
+              }}
+            >
+              <Text style={styles.confirmButtonText}>Confirmer</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </ImageBackground>
     </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  backgroundImageStyle: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Semi-transparent dark overlay for text readability
+  },
   container: {
     flex: 1,
+    backgroundColor: "transparent",
+  },
+  fallbackBackground: {
     backgroundColor: "#000000",
   },
   content: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  },
+  loginForm: {
     paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 50 : 30,
+    alignItems: "center",
+  },
+  titleContainerTop: {
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    alignItems: "center",
   },
   titleContainer: {
     marginBottom: 12,
@@ -146,11 +185,13 @@ const styles = StyleSheet.create({
   confirmButton: {
     width: "100%",
     maxWidth: 320,
-    backgroundColor: "#4ade80",
+    backgroundColor: "#171717",
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#333",
   },
   confirmButtonText: {
     color: "#FFFFFF",

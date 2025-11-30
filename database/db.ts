@@ -9,6 +9,8 @@ export type Listing = {
     productsInReturn: string;
     description?: string;
     image?: string; // Base64 encoded image
+    latitude?: number;
+    longitude?: number;
 };
 
 export type Resource = {
@@ -61,7 +63,9 @@ export async function initDB(deviceVendorID?: string) {
             vendorID TEXT,
             productsInReturn TEXT,
             description TEXT,
-            image TEXT
+            image TEXT,
+            latitude REAL,
+            longitude REAL
         );
         CREATE TABLE IF NOT EXISTS Ressources (
             id INTEGER PRIMARY KEY NOT NULL,
@@ -104,6 +108,26 @@ export async function initDB(deviceVendorID?: string) {
             console.error('Migration error:', error);
         }
     }
+    
+    try {
+        await database.execAsync(`
+            ALTER TABLE listings ADD COLUMN latitude REAL;
+        `);
+    } catch (error: any) {
+        if (!error.message?.includes('duplicate column')) {
+            console.error('Migration error:', error);
+        }
+    }
+    
+    try {
+        await database.execAsync(`
+            ALTER TABLE listings ADD COLUMN longitude REAL;
+        `);
+    } catch (error: any) {
+        if (!error.message?.includes('duplicate column')) {
+            console.error('Migration error:', error);
+        }
+    }
 }
 
 // --- LISTINGS ---
@@ -133,8 +157,8 @@ function ensureDB() {
 export async function addListing(listing: Listing) {
     const database = ensureDB();
     const result = await database.runAsync(
-        'INSERT INTO listings (ressource, vendorName, vendorID, productsInReturn, description, image) VALUES (?, ?, ?, ?, ?, ?)',
-        [listing.ressource, listing.vendorName, listing.vendorID, listing.productsInReturn, listing.description ?? null, listing.image ?? null]
+        'INSERT INTO listings (ressource, vendorName, vendorID, productsInReturn, description, image, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [listing.ressource, listing.vendorName, listing.vendorID, listing.productsInReturn, listing.description ?? null, listing.image ?? null, listing.latitude ?? null, listing.longitude ?? null]
     );
     return result.lastInsertRowId;
 }
